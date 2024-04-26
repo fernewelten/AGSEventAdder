@@ -1,0 +1,119 @@
+﻿<Window x:Class="AGSEventAdder.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AGSEventAdder"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        mc:Ignorable="d"
+        Title="AGS Game Event Adder" 
+        Height="450" Width="1000"
+        Closing="Window_Closing">
+    <Window.Resources>
+        <sys:Double x:Key="FullLineHeight">25</sys:Double>
+        <sys:Double x:Key="LineHeight">20</sys:Double>
+        <sys:Double x:Key="DownSpacer">10</sys:Double>
+        <sys:Boolean x:Key="ChangesPending">False</sys:Boolean>
+        <local:CollapsedWhenEmptyConverter x:Key="CollapsedWhenEmpty" />
+        <local:CollapsedWhenFalseConverter x:Key="CollapsedWhenFalse" />
+    </Window.Resources>
+    <StackPanel>
+        <StackPanel.Margin>
+            <Thickness Left="10" Right="10" Bottom="{StaticResource DownSpacer}"></Thickness>
+        </StackPanel.Margin>
+        <StackPanel>
+            <!-- Pfad zum Game, Room zum Game -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <Label x:Name="GamePathLabel" 
+                       Target="{Binding ElementName=GamePathTxt}"
+                       Content="_Game"/>
+                <DockPanel Grid.Column="1">
+                    <TextBox x:Name="GamePathTxt"
+                             Text=""
+                             FontFamily="./Fonts/#DM Mono"
+                             TextChanged="GamePathTxt_TextChanged"
+                             LostFocus="GamePathTxt_LostFocus"
+                             GotKeyboardFocus="GamePathTxt_GotKeyboardFocus"
+                             VerticalAlignment="Center"
+                             MinWidth="300"
+                             MaxWidth="500">
+                        <TextBox.Resources>
+                            <sys:String x:Key="Prompt">(Enter Path to .ags file)</sys:String>
+                        </TextBox.Resources>
+                    </TextBox>
+                    <Button x:Name="GamePathTxtReturnBtn" 
+                            Content="⏎" 
+                            Visibility="{Binding ElementName=GamePathTxt,Path=IsFocused,Converter={StaticResource CollapsedWhenFalse}}"
+                            Height="{StaticResource LineHeight}"/>
+                    <Button x:Name="GamePathBrowseBtn"
+                            Content="Browse"
+                            Click="GamePathBrowseBtn_Click"
+                            Height="{StaticResource LineHeight}"/>
+                    <TextBlock x:Name="GameDescBlock"
+                                Text=""
+                                VerticalAlignment="Center"
+                                Margin="10,0,0,0"/>
+                </DockPanel>
+                <TextBlock x:Name="GamePathErrorTxt"
+                           Grid.Row="1" Grid.Column="1" 
+                           Text=""
+                           Visibility="{Binding ElementName=GamePathErrorTxt,Path=Text,Converter={StaticResource CollapsedWhenEmpty}}"
+                           TextWrapping="Wrap">
+                    <TextBlock.Resources>
+                        <sys:String x:Key="Default">ERROR: Cannot open or access</sys:String>
+                    </TextBlock.Resources>
+                </TextBlock>
+                <Label Grid.Row="2"  x:Name="RoomLabel" 
+                       Content="_Room"
+                       Target="{Binding ElementName=RoomCbB}"
+                       Visibility="{Binding ElementName=GameDescBlock,Path=Text,Converter={StaticResource CollapsedWhenEmpty}}"/>
+                <ComboBox x:Name="RoomCbB" 
+                          Grid.Row="2" Grid.Column="1"
+                          IsEditable="False"
+                          Visibility="{Binding ElementName=GameDescBlock,Path=Text,Converter={StaticResource CollapsedWhenEmpty}}"
+                          SelectionChanged="RoomCbB_SelectionChanged">
+                    <ComboBox.Resources>
+                        <local:RoomConverter x:Key="RoomCV" />
+                    </ComboBox.Resources>
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Nesting}"
+                                           FontFamily="./Fonts/#DM Mono"/>
+                                <TextBlock Text=" "/>
+                                <TextBlock Text="{Binding Room,Converter={StaticResource RoomCV}}" />
+                                <TextBlock Text=" "/>
+                                <TextBlock Text="{Binding Description}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+    
+                <TextBlock x:Name="RoomErrorTxt"
+                           Grid.Row="3" Grid.Column="1" 
+                           Text="ERROR: Room has dematerialized"
+                           Visibility="Collapsed"/>
+            </Grid>
+          
+            <StackPanel x:Name="RoomPanel">
+                <DockPanel Height="{StaticResource FullLineHeight}" LastChildFill="True">
+                </DockPanel>
+            </StackPanel>
+        </StackPanel>
+        <StackPanel Grid.Row="2">
+            <!-- Tabreiter für die Events-->
+            <Label Content="platzhalter"/>
+            <TextBox />
+        </StackPanel>
+    </StackPanel>
+</Window>
