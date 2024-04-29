@@ -52,7 +52,7 @@ namespace AGSEventAdder
 		
 		private void InitDesc()
 		{
-			List<String> desc_list = new List<String>();
+			List<String> desc_list = [];
 			var settings_el = Tree.Root.Element("Game").Element("Settings");
 			String game_name =
 				(from el in settings_el.Elements("GameName")
@@ -82,13 +82,15 @@ namespace AGSEventAdder
 			XElement rooms_folder = 
 				Tree.Root.Element("Game").Element("Rooms").Element("UnloadedRoomFolder");
 
-			var rooms_list = new List<RoomRow>();
-			rooms_list.Add(new RoomRow
+			var rooms_list = new List<RoomRow>
 			{
-				Nesting = "",
-				Room = kNoRoom,
-				Description = "‹ No room ›",
-			});
+				new ()
+				{
+					Nesting = "",
+					Room = kNoRoom,
+					Description = "‹ No room ›",
+				}
+			};
 
 			var subfolders = rooms_folder.Element("SubFolders").Elements();
 			foreach (var f in subfolders)
@@ -110,7 +112,7 @@ namespace AGSEventAdder
 
 		private void InitRooms_Folder(in String prefix, in String lead_in, in XElement folder, ref List<RoomRow> rlist)
 		{
-			RoomRow rr = new RoomRow
+			RoomRow rr = new()
 			{
 				Room = kNoRoom,
 				Nesting = prefix + lead_in,
@@ -154,10 +156,12 @@ namespace AGSEventAdder
 
 		private void InitRooms_Room(in String prefix, in String lead_in, in XElement room, ref List<RoomRow> rlist)
 		{
-			RoomRow rr = new RoomRow();
-			rr.Room = Int32.Parse(room.Element("Number").Value);
-			rr.Nesting = prefix + lead_in;
-			rr.Description = room.Element("Description").Value;
+			RoomRow rr = new()
+			{
+				Room = Int32.Parse(room.Element("Number").Value),
+				Nesting = prefix + lead_in,
+				Description = room.Element("Description").Value
+			};
 			rlist.Add(rr);
 		}
 
@@ -191,13 +195,13 @@ namespace AGSEventAdder
 			error_msg = null;
 
 			// Get directory from path
-			FileInfo fi = new FileInfo(agsfilepath);
+			FileInfo fi = new(agsfilepath);
 			String game_dir = fi.Directory.FullName;
 			String lockfilepath = game_dir +
 									IO.Path.DirectorySeparatorChar +
 									"_OpenInEditor.lock";
 			
-			XDocument xtree = new XDocument();
+			XDocument xtree = new ();
 
 			try
 			{

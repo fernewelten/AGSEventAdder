@@ -164,7 +164,7 @@ namespace AGSEventAdder
 			ComboBox cbb = sender as ComboBox;
 			int index = cbb.SelectedIndex;
 			if (index >= 0 && app.AgsGame.Rooms[index].Room == AgsGame.kNoRoom)
-				index = cbb.SelectedIndex = 0;
+				cbb.SelectedIndex = 0;
 		}
 	}
 

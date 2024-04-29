@@ -23,7 +23,7 @@ namespace AGSEventAdder
 		{
 			// Thread.CurrentThread.CurrentCulture = new CultureInfo("de-DE");
 
-			MainWindow wnd = new MainWindow();
+			MainWindow wnd = new();
 			wnd.Show();
 		}
 	}
