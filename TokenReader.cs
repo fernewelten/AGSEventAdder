@@ -30,11 +30,13 @@ namespace AGSEventAdder
 		/// <returns>token as a String</returns>
 		public String ReadToken()
 		{
-			const String number_chars = "0123456789.+-Ee";
-			const String ident_chars =
-				"abcdefghijklmnopqrstuvwxyz" +
-				"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-				"0123456789";
+			const String digits = "0123456789";
+			const String number_chars = digits + ".+-Ee";
+			const String letters =
+				"abcdefghijklmnopqrstuvwxyz"
+			  + "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+			const String ident_chars = digits + letters;
+
 			char first_char;
 			do
 			{
@@ -45,9 +47,9 @@ namespace AGSEventAdder
 			}
 			while (Char.IsWhiteSpace(first_char));
 
-			if (Char.IsDigit(first_char))
+			if (digits.IndexOf(first_char) >= 0)
 				return ReadCharSeq(first_char, number_chars);
-			if (Char.IsLetter(first_char))
+			if (letters.IndexOf(first_char) >= 0)
 				return ReadCharSeq(first_char, ident_chars);
 			if (first_char == '\'' || first_char == '"')
 				return ReadQuoted(first_char);
