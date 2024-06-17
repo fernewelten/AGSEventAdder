@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AGSEventAdder
+namespace AgsEventAdder
 {
 	internal static class NestingStrings
 	{

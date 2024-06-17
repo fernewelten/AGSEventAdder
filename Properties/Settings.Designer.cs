@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace AGSEventAdder.Properties
+namespace AgsEventAdder.Properties
 {
 
 

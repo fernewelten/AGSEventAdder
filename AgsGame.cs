@@ -10,7 +10,7 @@ using System.Security.AccessControl;
 using System.Security;
 using System.Windows.Controls;
 
-namespace AGSEventAdder
+namespace AgsEventAdder
 {
 	public class AgsGame 
 	{
@@ -72,7 +72,7 @@ namespace AGSEventAdder
 			if (!String.IsNullOrEmpty(game_developer))
 				desc_list.Add(game_developer);
 
-			Desc = String.Join(" · ", desc_list.ToArray());
+			Desc = String.Join(" · ", [.. desc_list]);
 			if (String.IsNullOrEmpty(Desc))
 				Desc = "AGS Game";
 		}

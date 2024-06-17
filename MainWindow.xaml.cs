@@ -18,7 +18,7 @@ using Microsoft.Win32;
 using System.IO;
 using System.Security.Cryptography;
 
-namespace AGSEventAdder
+namespace AgsEventAdder
 {
 	/// <summary>
 	/// Interaction logic for MainWindow.xaml

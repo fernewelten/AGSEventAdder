@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace AGSEventAdder.Properties
+namespace AgsEventAdder.Properties
 {
 
 
@@ -44,7 +44,7 @@ namespace AGSEventAdder.Properties
 			{
 				if ((resourceMan == null))
 				{
-					global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("AGSEventAdder.Properties.Resources", typeof(Resources).Assembly);
+					global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("AgsEventAdder.Properties.Resources", typeof(Resources).Assembly);
 					resourceMan = temp;
 				}
 				return resourceMan;

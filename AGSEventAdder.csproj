@@ -36,7 +36,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>AGSEventAdder.App</StartupObject>
+    <StartupObject>AgsEventAdder.App</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -59,7 +59,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="TokenReader.cs" />
+    <Compile Include="Preprocessor.cs" />
+    <Compile Include="Properties\IAgsReader.cs" />
+    <Compile Include="Scanner.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

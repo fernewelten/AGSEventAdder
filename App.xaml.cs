@@ -8,7 +8,7 @@ using System.Windows;
 
 using System.Threading;
 
-namespace AGSEventAdder
+namespace AgsEventAdder
 {
 	/// <summary>
 	/// Interaction logic for App.xaml
