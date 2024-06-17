@@ -61,6 +61,8 @@
     </ApplicationDefinition>
     <Compile Include="Preprocessor.cs" />
     <Compile Include="Properties\IAgsReader.cs" />
+    <Compile Include="Room.cs" />
+    <Compile Include="Rooms.cs" />
     <Compile Include="Scanner.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>

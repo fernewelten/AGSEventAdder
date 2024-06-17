@@ -29,15 +29,12 @@ namespace AgsEventAdder
 		/// <summary>
 		/// All the rooms in the game
 		/// </summary>
-		public List<RoomRow> Rooms { get; private set; }
+		public Rooms Rooms { get; private set; }
 
 		/// <summary>
 		/// The room to work on
 		/// </summary>
-		public int Room { get; set; }
-
-		public const int kNoRoom = -1;
-
+		public int RoomId { get; set; }
 
 		private XDocument Tree { get; set; }
 
@@ -79,91 +76,10 @@ namespace AgsEventAdder
 
 		private void InitRooms()
 		{
-			XElement rooms_folder = 
-				Tree.Root.Element("Game").Element("Rooms").Element("UnloadedRoomFolder");
-
-			var rooms_list = new List<RoomRow>
-			{
-				new ()
-				{
-					Nesting = "",
-					Room = kNoRoom,
-					Description = "‹ No room ›",
-				}
-			};
-
-			var subfolders = rooms_folder.Element("SubFolders").Elements();
-			foreach (var f in subfolders)
-				InitRooms_Folder(
-					prefix: "",
-					lead_in: "",
-					folder: f,
-					rlist: ref rooms_list);
-
-			var rooms = rooms_folder.Element("UnloadedRooms").Elements();
-			foreach (var rm in rooms)
-				InitRooms_Room(
-					prefix: "",
-					lead_in: "",
-					room: rm,
-					rlist: ref rooms_list);
-			Rooms = rooms_list;
+			Rooms = new Rooms(Tree);
 		}
 
-		private void InitRooms_Folder(in String prefix, in String lead_in, in XElement folder, ref List<RoomRow> rlist)
-		{
-			RoomRow rr = new()
-			{
-				Room = kNoRoom,
-				Nesting = prefix + lead_in,
-				Description = (folder?.Attribute("Name")?.Value) ?? "",
-			};
-			rlist.Add(rr);
-
-			var subfolders = folder.Element("SubFolders").Elements();
-			int subfolders_count = subfolders.Count();
-
-			var rooms = folder.Element("UnloadedRooms").Elements();
-			var rooms_count = rooms.Count();
-			int last_idx = subfolders_count + rooms_count - 1;
-
-			int idx = 0;
-			String new_prefix = (lead_in == "") ? "" : NestingStrings.TopDown;
-			foreach (var f in subfolders)
-			{
-				String new_lead_in = (idx == last_idx) ? 
-					NestingStrings.TopRight : NestingStrings.TopRightDown;
-				InitRooms_Folder(
-					prefix: new_prefix,
-					lead_in: new_lead_in,
-					folder: f,
-					rlist: ref rlist);
-				idx++;
-			}
-
-			foreach (var rm in rooms)
-			{
-				String new_lead_in = (idx == last_idx) ?
-					NestingStrings.TopRight : NestingStrings.TopRightDown;
-				InitRooms_Room(
-					prefix: new_prefix,
-					lead_in: new_lead_in,
-					room: rm,
-					rlist: ref rlist);
-				idx++;
-			}
-		}
-
-		private void InitRooms_Room(in String prefix, in String lead_in, in XElement room, ref List<RoomRow> rlist)
-		{
-			RoomRow rr = new()
-			{
-				Room = Int32.Parse(room.Element("Number").Value),
-				Nesting = prefix + lead_in,
-				Description = room.Element("Description").Value
-			};
-			rlist.Add(rr);
-		}
+		
 
 
 		private AgsGame() { }
@@ -263,19 +179,12 @@ namespace AgsEventAdder
 			game = new AgsGame
 			{
 				Tree = xtree,
-				Room = kNoRoom,
+				RoomId = Room.kNone,
 				Path = agsfilepath,
 				LockPath = lockfilepath,
 			};
 			game.Init();
 			error_msg = null;
 		}
-	}
-
-	public class RoomRow
-	{
-		public String Nesting { get; set; }
-		public int Room { get; set; }
-		public String Description { get; set; }
 	}
 }
