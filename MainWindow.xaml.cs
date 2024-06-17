@@ -106,7 +106,7 @@ namespace AgsEventAdder
 			GamePathErrorTxt.Text = "";
 			app.AgsGame = game;
 			GameDescBlock.Text = game.Desc;
-			RoomCbB.ItemsSource = game.Rooms.RoomList;
+			RoomCbB.ItemsSource = game.Rooms.List;
 			RoomCbB.SelectedIndex = 0;
 		}
 
@@ -163,7 +163,7 @@ namespace AgsEventAdder
 			}
 			ComboBox cbb = sender as ComboBox;
 			int index = cbb.SelectedIndex;
-			if (index >= 0 && app.AgsGame.Rooms.RoomList[index].Id == Room.kNone)
+			if (index >= 0 && app.AgsGame.Rooms.List[index].Id == Room.kNone)
 				cbb.SelectedIndex = 0;
 		}
 	}

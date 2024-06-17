@@ -9,7 +9,7 @@ namespace AgsEventAdder
 {
 	public class Rooms
 	{
-		public List<Room> RoomList { get; private set; }
+		public List<Room> List { get; private set; }
 
 		public Rooms(in XDocument tree) 
 		{
@@ -41,7 +41,7 @@ namespace AgsEventAdder
 					lead_in: "",
 					room: rm,
 					rlist: ref rooms_list);
-			RoomList = rooms_list;
+			List = rooms_list;
 		}
 
 		private void InitFolder(in String prefix, in String lead_in, in XElement folder, ref List<Room> rlist)
