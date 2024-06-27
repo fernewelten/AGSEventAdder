@@ -59,6 +59,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Event.cs" />
+    <Compile Include="Events.cs" />
     <Compile Include="Preprocessor.cs" />
     <Compile Include="Properties\IAgsReader.cs" />
     <Compile Include="Room.cs" />
