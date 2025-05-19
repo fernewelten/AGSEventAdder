@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using System.Security.AccessControl;
 using System.Security;
 using System.Windows.Controls;
+using System.Runtime.CompilerServices;
 
 namespace AgsEventAdder
 {
@@ -26,15 +27,7 @@ namespace AgsEventAdder
 		
 		private String LockPath { get; set; }
 
-		/// <summary>
-		/// All the rooms in the game
-		/// </summary>
-		public Rooms Rooms { get; private set; }
-
-		/// <summary>
-		/// The room to work on
-		/// </summary>
-		public int RoomId { get; set; }
+		public Overview Overview { get; private set; }
 
 		private XDocument Tree { get; set; }
 
@@ -44,28 +37,23 @@ namespace AgsEventAdder
 		private void Init()
 		{
 			InitDesc();
-			InitRooms();
+			InitOverview();
 		}
 		
 		private void InitDesc()
 		{
 			List<String> desc_list = [];
-			var settings_el = Tree.Root.Element("Game").Element("Settings");
-			String game_name =
-				(from el in settings_el.Elements("GameName")
-				 select el.Value).SingleOrDefault();
+			var settings_el = Tree.Root.ElementOrThrow("Game").ElementOrThrow("Settings");
+
+			String game_name = settings_el.Element("GameName").Value;
 			if (!String.IsNullOrEmpty(game_name))
 				desc_list.Add(game_name);
 
-			String game_desc =
-				(from el in settings_el.Elements("Description")
-				 select el.Value).SingleOrDefault();
+			String game_desc = settings_el.Element("Description").Value;
 			if (!String.IsNullOrEmpty(game_desc))
 				desc_list.Add(game_desc);
 
-			String game_developer =
-				(from el in settings_el.Elements("DeveloperName")
-				 select el.Value).SingleOrDefault();
+			String game_developer = settings_el.Element("DeveloperName").Value;
 			if (!String.IsNullOrEmpty(game_developer))
 				desc_list.Add(game_developer);
 
@@ -74,12 +62,7 @@ namespace AgsEventAdder
 				Desc = "AGS Game";
 		}
 
-		private void InitRooms()
-		{
-			Rooms = new Rooms(Tree);
-		}
-
-		
+		private void InitOverview() => Overview = new(Tree);
 
 
 		private AgsGame() { }
@@ -135,7 +118,7 @@ namespace AgsEventAdder
 						FileMode.CreateNew,
 						FileAccess.Write,
 						FileShare.None);
-					String message = "Locked by AGS Event Manager\n";
+					String message = $"Locked by AGS Event Manager on {DateTime.Now:u}\n";
 					byte[] buf = new UTF8Encoding(true).GetBytes(message);
 					lock_fs.Write(buf, 0, buf.Length);
 				}
@@ -173,13 +156,11 @@ namespace AgsEventAdder
 			{
 				error_msg = "Cannot open game file: " + ex.Message;
 				return;
-
 			}
 
 			game = new AgsGame
 			{
 				Tree = xtree,
-				RoomId = Room.kNone,
 				Path = agsfilepath,
 				LockPath = lockfilepath,
 			};

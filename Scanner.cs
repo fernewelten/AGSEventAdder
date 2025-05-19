@@ -11,9 +11,9 @@ namespace AgsEventAdder
 	{
 		private readonly IAgsReader _reader;
 
-		public Scanner(IAgsReader sr)
+		public Scanner(IAgsReader reader)
 		{
-			_reader = sr;
+			_reader = reader;
 		}
 
 		public Scanner(String s)
@@ -54,7 +54,7 @@ namespace AgsEventAdder
 		}
 
 		/// <summary>
-		/// Read all conssecutive chars that are in seq
+		/// Read all consecutive chars that are in seq
 		/// </summary>
 		/// <param name="first_ch">The first character of the sequence</param>
 		/// <param name="seq"></param>
@@ -214,11 +214,11 @@ namespace AgsEventAdder
 		/// Collect all the names functions that are declared with body 
 		/// </summary>
 		/// <returns> (Unsorted) list of the functions </returns>
-		public List<String> CollectFunctionsWithBody()
+		public HashSet<String> CollectFunctionsWithBody()
 		{
 			const String before_func = "{;";
 
-			List<String> ret = [];
+			HashSet<String> ret = [];
 
 			while (true)
 			{
@@ -236,11 +236,13 @@ namespace AgsEventAdder
 
 					// Try to read a name
 					String name_s = ReadDelimitedTokens();
+					if (name_s == "*") 
+						name_s = ReadDelimitedTokens();
 					if (String.IsNullOrEmpty (name_s))
 						return ret;	
 					last_t_start = name_s[0];
 					if (!StartsIdent(last_t_start))
-						break; // can't be name  of function decl
+						break; // can't be name of function decl
 
 					// Try to read 'noloopcheck' or an expression in parentheses
 					String paren_s = ReadDelimitedTokens();

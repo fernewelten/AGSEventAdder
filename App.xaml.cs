@@ -7,17 +7,43 @@ using System.Threading.Tasks;
 using System.Windows;
 
 using System.Threading;
+using System.ComponentModel;
 
 namespace AgsEventAdder
 {
 	/// <summary>
 	/// Interaction logic for App.xaml
 	/// </summary>
-	public partial class App : Application
+	public partial class App : Application, INotifyPropertyChanged
 	{
-		// contains the game when open
+
+		private AgsGame _ags_game = null;
+
+		/// <summary>
+		/// Contains the game when open
+		/// </summary>
 		public AgsGame AgsGame
-			{ get; set; } = null;
+		{ 
+			get => _ags_game;
+			set
+			{
+				if (_ags_game == value)
+					return; // all done
+
+				_ags_game = value;
+				OnPropertyChanged(nameof(AgsGame));
+			}
+		}
+
+		/// <summary>
+		/// Notify UI elements whenever a property has changed
+		/// </summary>
+		public event PropertyChangedEventHandler PropertyChanged;
+
+		protected void OnPropertyChanged(string propertyName)
+		{
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+		}
 
 		private void Application_Startup(object sender, StartupEventArgs e)
 		{

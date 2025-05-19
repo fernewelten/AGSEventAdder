@@ -17,6 +17,7 @@ using System.Globalization;
 using Microsoft.Win32;
 using System.IO;
 using System.Security.Cryptography;
+using System.ComponentModel;
 
 namespace AgsEventAdder
 {
@@ -28,6 +29,10 @@ namespace AgsEventAdder
 		public MainWindow()
 		{
 			InitializeComponent();
+			// Set the data context from code behind because WPF will not
+			// allow this for 'App' specifically on the XAML side, making
+			// up lame excuses.
+			DataContext = Application.Current as App;
 
 			GamePathTxt.Text = GamePathTxt.FindResource("Prompt") as String;
 
@@ -76,7 +81,7 @@ namespace AgsEventAdder
 			App app = Application.Current as App;
 			// The prompt text is displayed in lieu of "" 
 			String prompt = GamePathTxt.FindResource("Prompt") as String;
-			if (changed_text == prompt && app.AgsGame is null)
+			if (changed_text == prompt && app?.AgsGame is null)
 				// All ready and done. Still no game selected
 				return;
 
@@ -106,8 +111,7 @@ namespace AgsEventAdder
 			GamePathErrorTxt.Text = "";
 			app.AgsGame = game;
 			GameDescBlock.Text = game.Desc;
-			RoomCbB.ItemsSource = game.Rooms.List;
-			RoomCbB.SelectedIndex = 0;
+			OverviewTV.ItemsSource = game.Overview.Root.Items;
 		}
 
 
@@ -120,7 +124,7 @@ namespace AgsEventAdder
 		private bool GamePathTxt_HandleAnyOpenGame(String changed_path)
 		{
 			App app = Application.Current as App;
-			if (app.AgsGame is null)
+			if (app?.AgsGame is null)
 				// All done because no game is open
 				return String.IsNullOrEmpty(changed_path);
 			
@@ -153,18 +157,12 @@ namespace AgsEventAdder
 			// ask to confirm closing
 		}
 
-		private void RoomCbB_SelectionChanged(object sender, SelectionChangedEventArgs e)
+		private void ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
 		{
-			App app = Application.Current as App;
-			if (app is null || app.AgsGame is null || app.AgsGame.Rooms is null)
-			{
-				RoomCbB.SelectedIndex = -1;
+			var lvi = sender as ListViewItem;
+			if (lvi?.Content is not OverviewItem selected)
 				return;
-			}
-			ComboBox cbb = sender as ComboBox;
-			int index = cbb.SelectedIndex;
-			if (index >= 0 && app.AgsGame.Rooms.List[index].Id == Room.kNone)
-				cbb.SelectedIndex = 0;
+
 		}
 	}
 
@@ -181,10 +179,13 @@ namespace AgsEventAdder
 
 		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
 		{
-			return null;
+			throw new NotImplementedException();
 		}
 	}
 
+	/// <summary>
+	/// 'false' converts to Collapsed, all others to Visible
+	/// </summary>
 	public class CollapsedWhenFalseConverter : IValueConverter
 	{
 		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -202,25 +203,23 @@ namespace AgsEventAdder
 
 		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
 		{
-			
-			return null;
+			throw new NotImplementedException();
 		}
 	}
 
-	public class RoomConverter : IValueConverter
+	/// <summary>
+	/// Null objects converted to Collapsed, all others to Visible
+	/// </summary>
+	public class CollapsedWhenNullConverter : IValueConverter
 	{
 		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
 		{
-			String strval = value.ToString();
-			if (strval == "-1")
-				strval = "";
-			return strval;
+			return (value is null) ? Visibility.Collapsed : Visibility.Visible;
 		}
 
 		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
 		{
-
-			return null;
+			throw new NotImplementedException(); 
 		}
 	}
 }

@@ -9,6 +9,10 @@ using System.Threading.Tasks;
 
 namespace AgsEventAdder
 {
+	/// <summary>
+	/// Stellt Routinen zum Lesen des nächsten Zeichens zur Verfügung,
+	/// wobei Kommentare ignoriert werden.
+	/// </summary>
 	public class Preprocessor : IAgsReader
 	{
 		public const int EOF = -1;
@@ -126,7 +130,7 @@ namespace AgsEventAdder
 						}
 						return;
 				}
-				// With this statement, '_at_line_star' will be true 
+				// With this statement, '_at_line_start' will be true 
 				// at the time the NEXT character is read.
 				_at_line_start = (_buffer[0] == '\n');
 				return;

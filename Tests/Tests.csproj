@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AGSEventAdder.csproj" />
+    <ProjectReference Include="..\AgsEventAdder.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -27,9 +27,10 @@ namespace Tests
 		}
 
 		[Fact]
-		public void SkipEolComment()
+		public void GetLine_SkipEolComment()
 		{
-			const String input = """
+			const String input = 
+				"""
 				int  // To B or not to B
 				a;
 				""";
@@ -40,9 +41,10 @@ namespace Tests
 		}
 
 		[Fact]
-		public void SkipLongComment()
+		public void GetLine_SkipLongComment()
 		{
-			const String input = """
+			const String input = 
+				"""
 				int	a /* To B or not /*
 				to B */;
 				""";
@@ -53,9 +55,10 @@ namespace Tests
 		}
 
 		[Fact]
-		public void SkipFirstPpDirective1()
+		public void GetLine_SkipFirstPpDirective1()
 		{
-			const String input = """
+			const String input = 
+				"""
 				#define
 				t
 				""";
@@ -65,7 +68,7 @@ namespace Tests
 		}
 
 		[Fact]
-		public void SkipFirstPpDirective2()
+		public void Read_NotSkipMiddleOfLineHash()
 		{
 			const String input = """
 				t#
@@ -76,7 +79,7 @@ namespace Tests
 		}
 
 		[Fact]
-		public void SkipPpDirective1()
+		public void GetLine_SkipSubsequentPpDirective1()
 		{
 			const String input = 
 				"""
@@ -90,9 +93,10 @@ namespace Tests
 		}
 
 		[Fact]
-		public void SkipPpDirective2()
+		public void GetLine_SkipMultilinePpDirective2()
 		{
-			const String input = """
+			const String input = 
+				"""
 				a
 				#line	\
 				Extra line

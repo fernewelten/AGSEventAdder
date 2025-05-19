@@ -4,45 +4,14 @@ using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace AgsEventAdder
 {
-	internal class Event
-	{
-		/// <summary>
-		/// Thing ID, e.g. object ID
-		/// </summary>
-		public int ThingId;
-
-		public EventId Id {  get; set; }
-		
-		/// <summary>
-		/// The function in the grid
-		/// </summary>
-		public String CurrentFunction { get; set; }
-		
-		/// <summary>
-		/// Whether a function named 'FunctionName' is defined in code
-		/// </summary>
-		public bool IsCurrentFunctionInCode { get; set; }
-
-		/// <summary>
-		/// Whether a function with the default name is defined in code
-		/// </summary>
-		public bool IsDefaultInCode { get; set; }
-
-		public String ChangedFunction { get; set; }
-
-		public bool AddFunctionToCode { get; set; }
-
-		/// <summary>
-		/// Whether a function stub should be added to the code
-		/// </summary>
-		public bool SetFunctionInGrid { get; set; }
-
-	}
-
-	public enum EventId
+	/// <summary>
+	/// Weist den verschiedenen Events eine Nummer zu.
+	/// </summary>
+	public enum EventType
 	{
 		None = -1,
 
@@ -61,10 +30,23 @@ namespace AgsEventAdder
 
 		// Additional events
 		// Keep these sorted alphabetically
+		AfterFadeIn,
 		AnyClickOn,
 		ClickOn,
+		FirstLoad,
+		Leave,
+		LeaveBottom,
+		LeaveLeft,
+		LeaveRight,
+		LeaveTop,
+		Load,
 		MouseOver,
+		OnActivate,
+		OnChange,
+		OnClick,
+		OnSelectionChanged,
 		OtherClickOn,
+		RepExec,
 		StandingOn,
 		WalkOff,
 		WalkOnto,
@@ -75,11 +57,29 @@ namespace AgsEventAdder
 		/// <summary>
 		/// Cursor Mode, as given in the AGS file
 		/// </summary>
-		public EventId Id { get; set; } = EventId.None;
-		public String Description { get; set; } = "";
+		public EventType Type { get; set; } = EventType.None;
+		public string Name { get; set; }
+		/// <summary>
+		/// Default functions end on this, e.g., "_Look"
+		/// </summary>
 		public String Ending { get; set; } = "";
+		/// <summary>
+		/// Signature of the function that implements the event
+		/// </summary>
 		public String Signature { get; set; } = "";
+
+		public String ReturnType { get; set; } = "";
 
 		public EventDesc Copy() => this.MemberwiseClone() as EventDesc;
 	};
+
+	internal class EventFacts
+	{
+		public String CurrentInRoster { get; set; }
+		public String NewInRoster { get; set; }
+		public bool CurrentIsInCode { get; set; }
+		public bool NewIsInCode { get; set; }
+		public bool AddStubToCode { get; set;}
+		public String StubToAdd { get; set;}
+	}
 }

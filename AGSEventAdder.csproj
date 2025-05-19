@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{A024E5EE-D936-4A0E-8F17-539BF8E8D0A2}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>AGSEventAdder</RootNamespace>
-    <AssemblyName>AGSEventAdder</AssemblyName>
+    <RootNamespace>AgsEventAdder</RootNamespace>
+    <AssemblyName>AgsEventAdder</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <LangVersion>latestMajor</LangVersion>
     <FileAlignment>512</FileAlignment>
@@ -59,13 +59,18 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AgsXmlParsingException.cs" />
+    <Compile Include="CodeDesc.cs" />
     <Compile Include="Event.cs" />
-    <Compile Include="Events.cs" />
+    <Compile Include="EventDescs.cs" />
+    <Compile Include="GuiControl.cs" />
+    <Compile Include="GuiControls.cs" />
+    <Compile Include="IAgsReader.cs" />
     <Compile Include="Preprocessor.cs" />
     <Compile Include="Properties\IAgsReader.cs" />
-    <Compile Include="Room.cs" />
-    <Compile Include="Rooms.cs" />
+    <Compile Include="Overview.cs" />
     <Compile Include="Scanner.cs" />
+    <Compile Include="XmlExtensions.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
