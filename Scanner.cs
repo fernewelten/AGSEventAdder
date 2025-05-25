@@ -61,7 +61,7 @@ namespace AgsEventAdder
 		/// <returns>The characters read, as a string</returns>
 		private String ReadCharSeq(char first_ch, CharTest test)
 		{
-			String ret = first_ch.ToString();
+			string ret = first_ch.ToString();
 			while (true)
 			{
 				char? peek = Peek();
@@ -95,7 +95,7 @@ namespace AgsEventAdder
 
 		private bool StartsQuotedLiteral(char ch)
 		{
-			const String lit_starters = "'\"";
+			const string lit_starters = "'\"";
 			return lit_starters.IndexOf(ch) >= 0;
 		}
 
@@ -109,7 +109,7 @@ namespace AgsEventAdder
 		private String ReadQuotedLiteral(char opener)
 		{
 
-			String ret = opener.ToString();
+			string ret = opener.ToString();
 			while (true)
 			{
 				char? rd = Read();
@@ -181,15 +181,15 @@ namespace AgsEventAdder
 		/// <returns>The token or string of tokens, as a String</returns>
 		public String ReadDelimitedTokens()
 		{
-			const String openers = "{[(";
-			const String closers = "}])";
+			const string openers = "{[(";
+			const string closers = "}])";
 
-			String ret = "";
+			string ret = "";
 			int nesting = 0;
 
 			do
 			{
-				String token = ReadToken();
+				string token = ReadToken();
 				if (String.IsNullOrEmpty(token))
 					return null;
 				if (openers.IndexOf(token[0]) >= 0)
@@ -211,72 +211,68 @@ namespace AgsEventAdder
 		}
 
 		/// <summary>
-		/// Collect all the names functions that are declared with body 
+		/// Collect all the names functions that are declared 
 		/// </summary>
 		/// <returns> (Unsorted) list of the functions </returns>
-		public HashSet<String> CollectFunctionsWithBody()
+		public void CollectDeclaredFunctions(HashSet<string> funcs)
 		{
-			const String before_func = "{;";
+			// Find:
+			// 'import TYPE FUNC (…);'
+			// 'TYPE noloopcheck FUNC (…) {' 
 
-			HashSet<String> ret = [];
-
+			// Loop through the symbols, wait for a func declaration
 			while (true)
 			{
-				// The first char of the last token read
-				char last_t_start;
+				string last_read = null;
 				do // exactly 1 time
 				{
 					// Try to read a type
-					String type_s = ReadDelimitedTokens();
-					if (String.IsNullOrEmpty(type_s))
-						return ret; // End-of-stream; let's return what we've got
-					last_t_start = type_s[0];
-					if (!StartsIdent(last_t_start))
+					string type_str = last_read = ReadDelimitedTokens();
+					bool import_found = (type_str == "import");
+					if (import_found)
+						type_str = last_read = ReadDelimitedTokens();
+					if (String.IsNullOrEmpty(type_str))
+						return; // End-of-stream; let's return what we've got					
+					if (!StartsIdent(type_str[0]))
 						break; // can't be type of function decl
 
 					// Try to read a name
-					String name_s = ReadDelimitedTokens();
-					if (name_s == "*") 
-						name_s = ReadDelimitedTokens();
-					if (String.IsNullOrEmpty (name_s))
-						return ret;	
-					last_t_start = name_s[0];
-					if (!StartsIdent(last_t_start))
+					string name_str = last_read = ReadDelimitedTokens();
+					if (name_str == "*") 
+						name_str = last_read = ReadDelimitedTokens();
+					if (name_str == "noloopcheck")
+						name_str = last_read = ReadDelimitedTokens();
+					if (String.IsNullOrEmpty (name_str))
+						return;	
+					if (!StartsIdent(name_str[0]))
 						break; // can't be name of function decl
 
-					// Try to read 'noloopcheck' or an expression in parentheses
-					String paren_s = ReadDelimitedTokens();
-					if (String.IsNullOrEmpty(paren_s))
-						return ret;
-					if (paren_s == "noloopcheck")
-					{
-						paren_s = ReadDelimitedTokens();
-						if (String.IsNullOrEmpty(paren_s))
-							return ret;
-					}
-					last_t_start = paren_s[0];
-					if (last_t_start != '(')
+					// Try to read an expression in parentheses
+					string paren_str = last_read = ReadDelimitedTokens();
+					if (String.IsNullOrEmpty(paren_str))
+						return;
+					if (paren_str[0] != '(')
 						break;
-
 					// Try to read an expression in braces
-					String brace_s = ReadDelimitedTokens();
-					if (String.IsNullOrEmpty(brace_s))
-						return ret;
-					last_t_start = brace_s[0];
-					if (last_t_start != '{')
-						break;
-
-					// This is a header of a function declaration with body.
-					ret.Add(name_s);
+					string brace_str = last_read = ReadDelimitedTokens();
+					if (String.IsNullOrEmpty(brace_str))
+						return;
+					if (brace_str == ";" && import_found)
+						// This is an import stmt. of a function
+						funcs.Add(name_str);
+					else if (brace_str[0] == '{')
+						// This is a header of a function declaration with body.
+						funcs.Add(name_str);
 				} while (false);
 
-				// if we aren't behind ';' or '{…}', wait for that
-				while (before_func.IndexOf(last_t_start) < 0)
+				if (last_read == null || last_read[0] == '{')
+					continue;
+
+				while (last_read != ";")
 				{
-					String token_s = ReadDelimitedTokens();
-					if (String.IsNullOrEmpty(token_s))
-						return ret;
-					last_t_start = token_s[0];
+					last_read = ReadDelimitedTokens();
+					if (last_read is null)
+						return;
 				}
 			}
 		}

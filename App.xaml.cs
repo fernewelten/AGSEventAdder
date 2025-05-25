@@ -35,6 +35,21 @@ namespace AgsEventAdder
 			}
 		}
 
+		private int _changes_pending = 0;
+
+		public int ChangesPending
+		{
+			get => _changes_pending;
+			set
+			{
+				if (_changes_pending == value)
+					return;
+				_changes_pending = value;
+				OnPropertyChanged(nameof(ChangesPending));
+			}
+		}
+
+
 		/// <summary>
 		/// Notify UI elements whenever a property has changed
 		/// </summary>

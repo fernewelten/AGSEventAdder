@@ -60,6 +60,7 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="AgsXmlParsingException.cs" />
+    <Compile Include="CharacterTable.cs" />
     <Compile Include="CodeDesc.cs" />
     <Compile Include="Event.cs" />
     <Compile Include="EventDescs.cs" />

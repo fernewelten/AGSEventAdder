@@ -18,28 +18,45 @@ namespace AgsEventAdder
 		/// <param name="name">Name of child element</param>
 		/// <returns>The child element</returns>
 		/// <exception cref="AgsXmlParsingException"></exception>
-		public static XElement ElementOrThrow(this XElement el, XName name) =>
+		internal static XElement ElementOrThrow(this XElement el, XName name) =>
 			el.Element(name) ??
 				throw new AgsXmlParsingException(
 					$"Sub-element '<{name}>' not found within <{el.Name}>", 
 					el);
 
 		/// <summary>
-		/// Check that the element 'el' has an attribute 'attrib' that has the value 'value'
+		/// Check that the element 'el' has an attribute 'attrib' that has the expected 'expected'
 		/// </summary>
 		/// <param name="el">The element</param>
 		/// <param name="attrib">The attribute of the element</param>
-		/// <param name="value">The value of the attribute</param>
+		/// <param name="expected">The expected of the attribute</param>
 		/// <returns>The element</returns>
 		/// <exception cref="AgsXmlParsingException"></exception>
-		public static XElement AttributeOrThrow(this XElement el, XName attrib, string value)
+		internal static XElement CheckAttributeOrThrow(this XElement el, XName attrib, string expected)
+		{
+			var actual = el.AttributeValueOrThrow(attrib);
+			return actual == expected ? 
+				el : throw new AgsXmlParsingException(
+					$"In Element '<{el.Name}>', the attribute '{attrib}' has the value '{actual}' but should have '{expected}'", 
+					el);
+		}
+
+		internal static string AttributeValueOrThrow(this XElement el, in XName attrib)
 		{
 			var att = el.Attribute(attrib) ?? throw new AgsXmlParsingException(
-					$"Element '<{el.Name}>' doesn't contain an attribute called '{attrib}'");
-			if (el.Attribute(attrib).Value != value)
+					$"Element '<{el.Name}>' doesn't have an attribute called '{attrib}'", 
+					el);
+			return att.Value;
+		}
+
+		internal static int IntAttributeValueOrThrow(this XElement el, in XName attrib)
+		{
+			var value = el.AttributeValueOrThrow(attrib);
+			if (!int.TryParse(value, out var int_value))
 				throw new AgsXmlParsingException(
-					$"In Element '<{el.Name}>', the attribute '{attrib}' doesn't have the value '{value}'");
-			return el;
+					$"Element 'Attribute '{attrib}' of <{el}>' contains '{value}', this isn't a legal integer",
+					el);
+			return int_value;
 		}
 
 		/// <summary>
@@ -55,7 +72,7 @@ namespace AgsEventAdder
 			var name_el = el.ElementOrThrow(name);
 			if (!int.TryParse(name_el.Value, out var int_value))
 				throw new AgsXmlParsingException(
-					$"Element '<{name_el.Name}>' doesn't contain a legal integer", 
+					$"Element '<{name_el.Name}>' contains '{name_el.Value}', this isn't a legal integer", 
 					name_el);
 			return int_value;
 		}

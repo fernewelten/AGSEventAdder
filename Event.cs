@@ -8,6 +8,19 @@ using System.Xml.Linq;
 
 namespace AgsEventAdder
 {
+	public enum EventCarrier
+	{
+		None = 0,
+
+		Characters,
+		Guis,
+		Hotspots,
+		InvItems,
+		Objects,
+		Regions,
+		Rooms,
+	}
+
 	/// <summary>
 	/// Weist den verschiedenen Events eine Nummer zu.
 	/// </summary>
@@ -52,7 +65,7 @@ namespace AgsEventAdder
 		WalkOnto,
 	}
 
-	internal class EventDesc
+	public class EventDesc
 	{
 		/// <summary>
 		/// Cursor Mode, as given in the AGS file
@@ -73,12 +86,15 @@ namespace AgsEventAdder
 		public EventDesc Copy() => this.MemberwiseClone() as EventDesc;
 	};
 
-	internal class EventFacts
+	public class EventFacts
 	{
+		public EventType EventType {  get; set; } = EventType.None;
 		public String CurrentInRoster { get; set; }
 		public String NewInRoster { get; set; }
+		public String DefaultName { get; set; }
 		public bool CurrentIsInCode { get; set; }
 		public bool NewIsInCode { get; set; }
+		public bool DefaultIsInCode { get; set; }
 		public bool AddStubToCode { get; set;}
 		public String StubToAdd { get; set;}
 	}

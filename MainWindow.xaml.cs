@@ -18,6 +18,8 @@ using Microsoft.Win32;
 using System.IO;
 using System.Security.Cryptography;
 using System.ComponentModel;
+using System.Windows.Controls.Primitives;
+using System.Runtime.CompilerServices;
 
 namespace AgsEventAdder
 {
@@ -153,16 +155,110 @@ namespace AgsEventAdder
 
 		private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
 		{
-			// TODO: Check whether there are pending changes, if so then
-			// ask to confirm closing
+			if (Application.Current is not App app || app.ChangesPending == 0)
+				return;
+			// TODO Ask to confirm closing
 		}
 
-		private void ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+		private void OverviewTV_MouseDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			var lvi = sender as ListViewItem;
 			if (lvi?.Content is not OverviewItem selected)
 				return;
+			// Work out what has been selected
+			switch (selected.EventCarrier)
+			{
+				default:
+					return;
+				case EventCarrier.Characters:
+					OverviewTV_Characters_MouseDoubleClick();
+					return;
+				case EventCarrier.Guis:
+					OverviewTV_Guis_MouseDoubleClick();
+					return;
+				case EventCarrier.Hotspots:
+					{
+						int room = GetRoomFromOverviewItem(selected);
+						OverviewTV_Hotspots_MouseDoubleClick(room);
+						return;
+					}
+				case EventCarrier.InvItems:
+					OverviewTV_InvItems_MouseDoubleClick();
+					return;
+				case EventCarrier.Objects:
+					{
+						int room = GetRoomFromOverviewItem(selected);
+						OverviewTV_Objects_MouseDoubleClick(room);
+							return;
+					}
+				case EventCarrier.Regions:
+					{
+						int room = GetRoomFromOverviewItem(selected);
+						OverviewTV_Regions_MouseDoubleClick(room);
+						return;
+					}
+				case EventCarrier.Rooms:
+					{
+						int room = GetRoomFromOverviewItem(selected);
+						OverviewTV_Rooms_MouseDoubleClick(room);
+						return;
+					}
+			}
+		}
 
+		int GetRoomFromOverviewItem(in OverviewItem oit)
+		{
+			for (OverviewCompo compo = oit; compo is not null; compo = compo.Parent)
+				if (compo is OverviewRoom)
+					return (compo as OverviewRoom).Number;
+
+			return -1;
+		}
+
+		private void OverviewTV_Characters_MouseDoubleClick()
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_Guis_MouseDoubleClick()
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_Hotspots_MouseDoubleClick(in int room)
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_InvItems_MouseDoubleClick()
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_Objects_MouseDoubleClick(in int room)
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_Regions_MouseDoubleClick(in int room)
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_Rooms_MouseDoubleClick(in int room)
+		{
+			throw new NotImplementedException();
+		}
+
+
+		private void CommitAll_Click(object sender, RoutedEventArgs e)
+		{
+			throw new NotImplementedException();
+		}
+
+		private void RejectAll_Click(object sender, RoutedEventArgs e)
+		{
+			throw new NotImplementedException();
 		}
 	}
 
@@ -215,6 +311,30 @@ namespace AgsEventAdder
 		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
 		{
 			return (value is null) ? Visibility.Collapsed : Visibility.Visible;
+		}
+
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			throw new NotImplementedException(); 
+		}
+	}
+	
+	/// <summary>
+	/// Zero converted to Collapsed, all others to Visible
+	/// </summary>
+	public class CollapsedWhen0Converter : IValueConverter
+	{
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			try
+			{
+				int v = (int)value;
+				return v == 0? Visibility.Collapsed : Visibility.Visible;
+			}
+			catch
+			{
+				return Visibility.Visible;
+			}
 		}
 
 		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

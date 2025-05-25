@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Windows.Controls;
 using System.Management.Instrumentation;
 using System.ComponentModel;
+using System.Text.RegularExpressions;
 
 namespace AgsEventAdder
 {
@@ -17,11 +18,10 @@ namespace AgsEventAdder
 	/// Welche Events zu den großen Fallgruppen gehören, 
 	/// welche Eigenschaften diese Events haben
 	/// </summary>
-	internal class EventDescs
+	public class EventDescs
 	{
 		private Dictionary<EventType, EventDesc> _mouseModes;
 		private Dictionary<EventType, EventDesc> _defaultEvents;
-
 		public List<EventDesc> CharacterEvents { get; private set; }
 
 		public List<EventDesc> GuiEvents { get; private set; }
@@ -46,21 +46,22 @@ namespace AgsEventAdder
 
 
 
-		public EventDescs(in XDocument tree)
+		public EventDescs(XDocument tree)
 		{
-			XElement folder =
-				tree.Root.ElementOrThrow("Game").ElementOrThrow("Cursors");
-
-			InitMouseModes(folder);
+			InitMouseModes(tree);
 			InitDefaultEvents();
 
+			// Note: The sequence of events isn't arbitrary, it must match the
+			// sequence used in the AGS editor because event functions are
+			// saved to the game file as '<Event Index="…">func_name</Event>',
+			// and the 'Index' value must match the index in this list. 
 			CharacterEvents =
 				[_mouseModes[EventType.LookAt].Copy(),
 				_mouseModes[EventType.InteractWith].Copy(),
 				_mouseModes[EventType.TalkTo].Copy(),
 				_mouseModes[EventType.UseInventoryOn].Copy(),
-				_mouseModes[EventType.PickUp].Copy(),
 				_defaultEvents[EventType.AnyClickOn].Copy(),
+				_mouseModes[EventType.PickUp].Copy(),
 				_mouseModes[EventType.Mode8On].Copy(),
 				_mouseModes[EventType.Mode9On].Copy(),
 				];
@@ -115,10 +116,10 @@ namespace AgsEventAdder
 				_mouseModes[EventType.InteractWith].Copy(),
 				_mouseModes[EventType.TalkTo].Copy(),
 				_mouseModes[EventType.UseInventoryOn].Copy(),
-				_defaultEvents[EventType.AnyClickOn].Copy(),
 				_mouseModes[EventType.PickUp].Copy(),
 				_mouseModes[EventType.Mode8On].Copy(),
 				_mouseModes[EventType.Mode9On].Copy(),
+				_defaultEvents[EventType.AnyClickOn].Copy(),
 				_defaultEvents[EventType.WalkOnto].Copy(),
 				_defaultEvents[EventType.MouseOver].Copy(),
 				];
@@ -146,10 +147,10 @@ namespace AgsEventAdder
 				_mouseModes[EventType.InteractWith].Copy(),
 				_mouseModes[EventType.TalkTo].Copy(),
 				_mouseModes[EventType.UseInventoryOn].Copy(),
-				_defaultEvents[EventType.AnyClickOn].Copy(),
 				_mouseModes[EventType.PickUp].Copy(),
 				_mouseModes[EventType.Mode8On].Copy(),
 				_mouseModes[EventType.Mode9On].Copy(),
+				_defaultEvents[EventType.AnyClickOn].Copy(),
 				];
 			foreach (var ev in ObjectEvents)
 			{
@@ -186,26 +187,33 @@ namespace AgsEventAdder
 			}
 		}
 
-		private void InitMouseModes(in XElement folder)
+		private void InitMouseModes(XDocument tree)
 		{
 			Dictionary<String, String> name_replacements = new()
 			{
 				["Use Inv"] = "Use inventory on",
+				["Mode8"] = "Usermode 1",
+				["Mode9"] = "Usermode 2",
 			};
 			Dictionary<String, String> ending_replacements = new()
 			{
 				["LookAt"] = "Look",
 				["TalkTo"] = "Talk",
+				// With a default cockpit, the modes are called, 
+				// "Usermode 1" or "Usermode 2". So this would translate
+				// to "_Usermode1" etc., but this is NOT wanted, the
+				// default modes should be "Mode8" and "Mode9"
 				["Usermode1"] = "Mode8",
-				["Usermode2"] = "Mode9",
+				["Usermode2"] = "Mode9"
 			};
 
+			XElement folder =
+				tree.Root.ElementOrThrow("Game").ElementOrThrow("Cursors");
+
 			_mouseModes = [];
-			foreach (var cursor_el in folder.Elements())
+			foreach (var cursor_el in folder.Elements("MouseCursor"))
 			{
-				var mouse_cursor_el = cursor_el.ElementOrThrow("MouseCursor");
-				EventType id = (EventType)cursor_el.IntElementOrThrow("ID");
-				var name = mouse_cursor_el.ElementOrThrow("GuiControlName").Value;
+				var name = cursor_el.ElementOrThrow("Name").Value;
 				// The default ending is the name with each word capitalized,
 				// where spaces are deleted
 				var name_parts = name.Split(' ');
@@ -216,6 +224,7 @@ namespace AgsEventAdder
 							name_part[0].ToString().ToUpper() +
 							name_part.Substring(1);
 
+				var id = (EventType)cursor_el.IntElementOrThrow("ID");
 				if (string.IsNullOrEmpty(ending))
 					ending = "Mode" + ((int)id).ToString();
 
@@ -283,6 +292,5 @@ namespace AgsEventAdder
 			foreach (var ev in _defaultEvents)
 				ev.Value.Type = ev.Key;
 		}
-		
 	}
 }

@@ -10,6 +10,8 @@ using System.Security.AccessControl;
 using System.Security;
 using System.Windows.Controls;
 using System.Runtime.CompilerServices;
+using System.Collections.ObjectModel;
+using System.Runtime.Remoting.Messaging;
 
 namespace AgsEventAdder
 {
@@ -29,6 +31,15 @@ namespace AgsEventAdder
 
 		public Overview Overview { get; private set; }
 
+		public EventDescs EventDescs { get; private set; }
+
+		
+		public HashSet<string> HeaderFunctions { get; private set; } = [];
+		
+		public HashSet<string> GlobalFunctions { get; private set; } = [];
+
+		public CharacterTable CharacterTable { get; set; } = null;
+
 		private XDocument Tree { get; set; }
 
 		/// <summary>
@@ -38,6 +49,10 @@ namespace AgsEventAdder
 		{
 			InitDesc();
 			InitOverview();
+			InitEventDescs();
+			InitGlobalHeaders();
+			InitGlobalFunctions();
+			InitCharacterTable();
 		}
 		
 		private void InitDesc()
@@ -64,6 +79,38 @@ namespace AgsEventAdder
 
 		private void InitOverview() => Overview = new(Tree);
 
+		private void InitEventDescs() => EventDescs = new(Tree);
+
+		private void InitGlobalHeaders()
+		{
+			string game_dir = Path2Folder(Path);
+			string global_header = game_dir +
+									IO.Path.DirectorySeparatorChar +
+									"GlobalScript.ash";
+
+			var reader = new StreamReaderShim(new StreamReader(global_header));
+			var preprocessor = new Preprocessor(reader);
+			var scanner = new Scanner(preprocessor);
+			scanner.CollectDeclaredFunctions(HeaderFunctions);
+		}
+
+		private void InitGlobalFunctions()
+		{
+			string game_dir = Path2Folder(Path);
+			string global_header = game_dir +
+									IO.Path.DirectorySeparatorChar +
+									"GlobalScript.asc";
+
+			var reader = new StreamReaderShim(new StreamReader(global_header));
+			var preprocessor = new Preprocessor(reader);
+			var scanner = new Scanner(preprocessor);
+			scanner.CollectDeclaredFunctions(GlobalFunctions);
+		}
+
+		private void InitCharacterTable()
+		{
+			CharacterTable = new(Tree, EventDescs, GlobalFunctions);
+		}
 
 		private AgsGame() { }
 
@@ -88,19 +135,17 @@ namespace AgsEventAdder
 			Unlock();
 		}
 
-		public static void Factory(String agsfilepath, out AgsGame game, out String error_msg)
+		public static void Factory(string agsfilepath, out AgsGame game, out string error_msg)
 		{
 			game = null;
 			error_msg = null;
 
-			// Get directory from path
-			FileInfo fi = new(agsfilepath);
-			String game_dir = fi.Directory.FullName;
-			String lockfilepath = game_dir +
+			string game_dir = Path2Folder(agsfilepath);
+			string lockfilepath = game_dir +
 									IO.Path.DirectorySeparatorChar +
 									"_OpenInEditor.lock";
 			
-			XDocument xtree = new ();
+			XDocument xtree = new();
 
 			try
 			{
@@ -166,6 +211,17 @@ namespace AgsEventAdder
 			};
 			game.Init();
 			error_msg = null;
+		}
+
+		/// <summary>
+		/// Get directory from path
+		/// </summary>
+		/// <param name="path"></param>
+		/// <returns>The directory</returns>
+		private static string Path2Folder(in string path)
+		{
+			FileInfo fi = new(path);
+			return fi.Directory.FullName;
 		}
 	}
 }

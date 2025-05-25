@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Security.Cryptography;
 using AgsEventAdder;
@@ -53,7 +54,7 @@ namespace Tests
 		[Fact]
 		public void CollectFunctionsWithBody_CollectFunctions_1()
 		{
-			const String input = 
+			const String input =
 				"""
 				int DialogOption;
 				String a, b, c = 9;
@@ -67,13 +68,14 @@ namespace Tests
 
 				}
 				function gTitleScr_Quit_OnClick(GUIControl, MouseButton);
-				int gTitleScr_Load_OnClick noloopcheck(GUIControl *control, MouseButton button)
+				int noloopcheck gTitleScr_Load_OnClick (GUIControl *control, MouseButton button)
 				{
 
 				}
 				""";
 			Scanner sc = new(input);
-			var funcs = sc.CollectFunctionsWithBody();
+			HashSet<string> funcs = [];
+			sc.CollectDeclaredFunctions(funcs);
 			Assert.Contains("PrepareDisplay", funcs);
 			Assert.Contains("gTitleScr_Start_OnClick", funcs);
 			Assert.Contains("gTitleScr_Load_OnClick", funcs);
@@ -89,7 +91,8 @@ namespace Tests
 			Preprocessor pp = new(s: input);
 			Scanner sc = new(reader: pp);
 
-			var funcs = sc.CollectFunctionsWithBody();
+			HashSet<string> funcs = [];
+			sc.CollectDeclaredFunctions(funcs); ;
 			string fn = DateTime.Now.ToString("u");
 			fn = fn.Replace(':', '.').Replace(' ', '_');
 			using StreamWriter sw = new($"C:\\temp\\CollectFunc-{fn}.txt");

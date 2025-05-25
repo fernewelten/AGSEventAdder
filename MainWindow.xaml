@@ -13,16 +13,24 @@
     <Window.Resources>
         <sys:Double x:Key="FullLineHeight">25</sys:Double>
         <sys:Double x:Key="LineHeight">20</sys:Double>
-        <sys:Double x:Key="DownSpacer">10</sys:Double>
+        <sys:Double x:Key="VerticalSpacer">10</sys:Double>
+        <sys:Double x:Key="HorizontalSpacer">10</sys:Double>
         <sys:Boolean x:Key="GameOpen">False</sys:Boolean>
-        <sys:Boolean x:Key="ChangesPending">False</sys:Boolean>
         <local:CollapsedWhenNullConverter x:Key="CollapsedWhenNull" />
         <local:CollapsedWhenEmptyConverter x:Key="CollapsedWhenEmpty" />
         <local:CollapsedWhenFalseConverter x:Key="CollapsedWhenFalse" />
+        <local:CollapsedWhen0Converter x:Key="CollapsedWhen0" />
+
+        <!-- Make Grid header texts left-aligned -->
+        <Style TargetType="{x:Type GridViewColumnHeader}">
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+
         <!-- This gory ~140 lines blob of code is needed in order to have TreeViews
              behave as they ought to behave, as far as alignment is concerned.
-             NOTE! They claim that this awfulness would "not be too bad" (!!) -->
-        <!-- XAML is all about getting wonderfully readable, extremely clear 
+             NOTE! They claim that this awfulness would "not be too bad" (!!)
+        
+             XAML is all about getting wonderfully readable, extremely clear 
              UI code where you can always zoom in on exactly what you need to 
              know and arrive instantly. It's the holy grail of UI and soooo much
              better than programming code. You know. -->
@@ -164,17 +172,20 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-        </Style>
+        </Style
+>
     </Window.Resources>
     
     <Grid>
         <Grid.Margin>
-            <Thickness Left="10" Right="10" Bottom="{StaticResource DownSpacer}"></Thickness>
+            <Thickness Left="10" Right="10" Bottom="{StaticResource VerticalSpacer}"/>
         </Grid.Margin>
         <Grid.RowDefinitions>
             <!-- Game name, description, buttons-->
             <RowDefinition Height="Auto"/>
             <!-- Errors when opening game -->
+            <RowDefinition Height="Auto"/>
+            <!-- Pending changes -->
             <RowDefinition Height="Auto"/>
             <!-- Work area (Overview + work grid) -->
             <RowDefinition Height="*"/>
@@ -223,116 +234,201 @@
                 <sys:String x:Key="Default">ERROR: Cannot open or access</sys:String>
             </TextBlock.Resources>
         </TextBlock>
+        <DockPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                   Visibility="{Binding ChangesPending, Converter={StaticResource CollapsedWhen0}}">
+            <DockPanel.Margin>
+                <Thickness Top="{StaticResource VerticalSpacer}" Bottom="{StaticResource VerticalSpacer}"/>
+            </DockPanel.Margin>
+            <DockPanel.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Padding" Value="5"/>
+                </Style>
+            </DockPanel.Resources>
+            <Button x:Name="CommitAll" Click="CommitAll_Click">
+                <Button.Margin>
+                    <Thickness Right="{StaticResource HorizontalSpacer}"/>
+                </Button.Margin>
+                <TextBlock>
+                    <Run Text="💾"/>
+                    <Run Text="Write"/>
+                    <Run Text="{Binding ChangesPending}" Foreground="Red" FontWeight="Bold"/>
+                    <Run Text="changes to file"/>
+                </TextBlock>
+            </Button>
+            <Button x:Name="RejectAll" Click="RejectAll_Click">
+                <TextBlock>
+                    <Run Text="🗑️"/>
+                    <Run Text="Discard"/>
+                    <Run Text="{Binding ChangesPending}" Foreground="Red" FontWeight="Bold"/>
+                    <Run Text="changes"/>  
+                </TextBlock>
+            </Button>
+            <Label/>
+        </DockPanel>
+                    
         <!-- 'Source={x:Static Application.Current}' yields errors.
              WPF is struggling to resolve Application.Current as a static property, 
              which makes sense because Application.Current is an instance property, 
-             not a static one. The error suggests that x:Static is expecting a static 
-             field or property, but Application.Current is dynamic.
+             not a static one. 
              There is no way to name the App in XAML either: "x:Name" doesn't work
              for 'App' specifically, for which WPF makes the excuse that App is not 
              a "visual element". So the only way out is setting the data context in
              code behind. Afterwards, automatic field selection doesn't work in the
              Visual editor, which is disconcerting, but '{Binding AgsGame …}' 
              works anyway. -->
-
-        <Grid x:Name="ProessingGameGrid"
-                    Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+        <Grid x:Name="ProcessingGameGrid"
+                    Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                     Visibility="{Binding AgsGame, Converter={StaticResource CollapsedWhenNull}}">
-            <TreeView   x:Name="OverviewTV"
-                        Grid.Row="0">
-                <TreeView.Resources>
-                    <sys:String x:Key="Discrepancies">Discrepancies:&#160;</sys:String>
-                    <!-- The sequence of declarations is important here, without any good reason.
-                         "<DataTemplate …> must come _first_, only then can 
-                         "<HierarchicalDataTemplate …>" follow. Otherwise, you'll get a 
-                         nonsensical error message that doesn't help pinpointing the core problem. -->
-                    <DataTemplate 
-                        DataType="{x:Type local:OverviewItem}">
-                        <ListViewItem
-                            HorizontalContentAlignment="Left"
-                            MouseDoubleClick="ListViewItem_MouseDoubleClick">
-                            <StackPanel Orientation="Horizontal" >
+            <!-- Exactly 1 entry should be visible at all times -->
+            <Grid x:Name="OverviewGrid" Grid.Row="0" 
+                          Visibility="Visible">
+                <Grid.RowDefinitions>
+                    <!-- Header changes -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Treeview -->
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0"  
+                           HorizontalAlignment="Center">
+                    <TextBlock.Margin>
+                        <Thickness Bottom="{StaticResource VerticalSpacer}"/>
+                    </TextBlock.Margin>
+                    <Run Text="Overview"/>
+                </TextBlock>
+                <TreeView x:Name="OverviewTV"
+                          Grid.Row="1">
+                    <TreeView.Resources>
+                        <sys:String x:Key="Discrepancies">Discrepancies:&#160;</sys:String>
+                        <!-- The sequence of declarations is important here, without any good reason.
+                             "<DataTemplate …> must come _first_, only then can 
+                             "<HierarchicalDataTemplate …>" follow. Otherwise, you'll get a 
+                             nonsensical error message that doesn't help pinpointing the core problem. -->
+                        <DataTemplate DataType="{x:Type local:OverviewItem}">
+                            <ListViewItem
+                                HorizontalContentAlignment="Left"
+                                MouseDoubleClick="OverviewTV_MouseDoubleClick">
+                                <StackPanel Orientation="Horizontal" >
+                                    <TextBlock>
+                                        <Run Text="{Binding Icon, Mode=OneWay}" />
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding Name, Mode=OneWay}" />
+                                    </TextBlock>
+                                    <TextBlock>
+                                         <Run Text=" "/>
+                                         <Run Text="{StaticResource Discrepancies}"/>
+                                         <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ListViewItem>
+                        </DataTemplate>
+                        <HierarchicalDataTemplate DataType="{x:Type local:OverviewFolder}"  
+                            ItemsSource="{Binding Items}">
+                            <StackPanel 
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal">
+                                <TextBlock Text="{Binding Name, Mode=OneWay}" />
                                 <TextBlock>
-                                    <Run Text="{Binding Icon}" />
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="Red"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding TotalDiscrepancyCount}" Value="0">
+                                                    <Setter Property="FontWeight" Value="Normal"/>
+                                                    <Setter Property="Foreground" Value="Black"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
                                     <Run Text=" "/>
-                                    <Run Text="{Binding Name}" />
-                                </TextBlock>
-                                <TextBlock>
-                                     <Run Text=" "/>
-                                     <Run Text="{StaticResource Discrepancies}"/>
-                                     <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
+                                    <Run Text="{StaticResource Discrepancies}"/>
+                                    <Run Text="{Binding TotalDiscrepancyCount, Mode=OneWay}"/>
                                 </TextBlock>
                             </StackPanel>
-                        </ListViewItem>
-                    </DataTemplate>
-                    <HierarchicalDataTemplate
-                        DataType="{x:Type local:OverviewFolder}"  
-                        ItemsSource="{Binding Items}">
-                        <StackPanel 
-                            HorizontalAlignment="Left"
-                            Orientation="Horizontal">
-                            <TextBlock Text="{Binding Name}" />
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="Foreground" Value="Red"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding TotalDiscrepancyCount}" Value="0">
-                                                <Setter Property="FontWeight" Value="Normal"/>
-                                                <Setter Property="Foreground" Value="Black"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                                <Run Text=" "/>
-                                <Run Text="{StaticResource Discrepancies}"/>
-                                <Run Text="{Binding TotalDiscrepancyCount, Mode=OneWay}"/>
-                            </TextBlock>
-                        </StackPanel>
-                    </HierarchicalDataTemplate>
-                    <HierarchicalDataTemplate   
-                        DataType="{x:Type local:OverviewRoom}"  
-                        ItemsSource="{Binding Items}">
-                        <StackPanel  
-                            HorizontalAlignment="Left"
-                            Orientation="Horizontal">
-                            <TextBlock>
-                                <Run Text="Room"/>
-                                <Run Text="{Binding Number}"/>
-                                <Run Text=" "/>
-                                <Run Text="{Binding Name}" />
-                            </TextBlock>
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                        <Setter Property="Foreground" Value="Red"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding TotalDiscrepancyCount}" Value="0">
-                                                <Setter Property="FontWeight" Value="Normal"/>
-                                                <Setter Property="Foreground" Value="Black"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                                <Run Text=" "/>
-                                <Run Text="{StaticResource Discrepancies}"/>
-                                <Run Text="{Binding TotalDiscrepancyCount, Mode=OneWay}"/>
-                            </TextBlock>
-                        </StackPanel>
-                    </HierarchicalDataTemplate>
-                    <Style TargetType="TreeViewItem">
-                        <Setter Property="HorizontalAlignment" Value="Left"/>
-                    </Style>
-                </TreeView.Resources>
-            </TreeView>
+                        </HierarchicalDataTemplate>
+                        <HierarchicalDataTemplate DataType="{x:Type local:OverviewRoom}"  
+                            ItemsSource="{Binding Items}">
+                            <StackPanel  
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal">
+                                <TextBlock>
+                                    <Run Text="Room"/>
+                                    <Run Text="{Binding Number, Mode=OneWay}"/>
+                                    <Run Text=" "/>
+                                    <Run Text="{Binding Name, Mode=OneWay}" />
+                                </TextBlock>
+                                <TextBlock>
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Foreground" Value="Red"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding TotalDiscrepancyCount}" Value="0">
+                                                    <Setter Property="FontWeight" Value="Normal"/>
+                                                    <Setter Property="Foreground" Value="Black"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                    <Run Text=" "/>
+                                    <Run Text="{StaticResource Discrepancies}"/>
+                                    <Run Text="{Binding TotalDiscrepancyCount, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </HierarchicalDataTemplate>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="HorizontalAlignment" Value="Left"/>
+                        </Style>
+                    </TreeView.Resources>
+                </TreeView>
+            </Grid>
 
-            <!-- At most 1 of the ListViews should be visible at all times -->
-            <ListView x:Name="CharacterLV" 
-                      Grid.Row="0"
-                      Visibility="Collapsed">
-            </ListView>
+            <Grid x:Name="CharacterGrid" Grid.Row="0" 
+                          Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <!-- Header changes -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Character listview -->
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" 
+                           HorizontalAlignment="Center">
+                    <TextBlock.Margin>
+                        <Thickness Bottom="{StaticResource VerticalSpacer}"/>
+                    </TextBlock.Margin>
+                    <Run Text="Characters"/>
+                </TextBlock>
+                <DataGrid x:Name="CharacterDGrid" 
+                          Grid.Row="1">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Character" Binding="{Binding Name}"/>
+                        <DataGridTextColumn Header="ID" Binding="{Binding Id}"/>
+                        <!-- TODO: This column is to be duplicated in Code Behind and specialised for each event -->
+                        <DataGridTemplateColumn Header="((Talk To))">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock>NewIsInCode</TextBlock>
+                                            <TextBlock>NewInRoster</TextBlock>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock>CurrentIsInCode</TextBlock>
+                                            <TextBlock>CurrentInRoster</TextBlock>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="Add Stub"/>
+                                            <TextBlock>StubToAdd</TextBlock>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+            
+            <!-- More grids to follow -->
         </Grid>
     </Grid>
 </Window>

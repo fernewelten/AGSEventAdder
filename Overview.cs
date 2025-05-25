@@ -15,6 +15,7 @@ namespace AgsEventAdder
 	/// </summary>
 	public abstract class OverviewCompo
 	{
+		public EventCarrier EventCarrier { get; set; }
 		public string Name { get; set; }
 		public OverviewCompo Parent { get; set; } = null;
 
@@ -70,8 +71,9 @@ namespace AgsEventAdder
 	{
 		public string Icon { get; set; } = null;
 
-		public OverviewItem(in string name, in string icon = null)
+		public OverviewItem(in EventCarrier c, in string name, in string icon = null)
 		{
+			EventCarrier = c;
 			Name = name;
 			Icon = icon;
 		}
@@ -86,9 +88,9 @@ namespace AgsEventAdder
 		{
 			Root = new("Game");
 			OverviewFolder gi = new("Global Items");
-			gi.AddItem(new OverviewItem("Character events", icon: "🧑"));
-			gi.AddItem(new OverviewItem("Inventory events", icon: "☕"));
-			gi.AddItem(new OverviewItem("GUI and GUIComponent events", icon: "🖥️"));
+			gi.AddItem(new OverviewItem(EventCarrier.Characters, "Character events", icon: "🧑"));
+			gi.AddItem(new OverviewItem(EventCarrier.InvItems, "Inventory events", icon: "☕"));
+			gi.AddItem(new OverviewItem(EventCarrier.Guis, "GUI and GUIComponent events", icon: "🖥️"));
 			Root.AddItem(gi);
 
 			OverviewFolder rooms = new("Rooms");
@@ -96,7 +98,7 @@ namespace AgsEventAdder
 			var xfolder = tree.Root.ElementOrThrow("Game")
 				.ElementOrThrow("Rooms")
 				.ElementOrThrow("UnloadedRoomFolder")
-				.AttributeOrThrow("Name", "Main");
+				.CheckAttributeOrThrow("Name", "Main");
 			ProcessRoomFolder(xfolder, rooms);
 			Root.AddItem(rooms);
 		}
@@ -129,10 +131,10 @@ namespace AgsEventAdder
 					desc = "((No description))";
 
 				OverviewRoom ov_room = new(number: number, desc: desc);
-				ov_room.AddItem(new OverviewItem("Room events", icon: "🏠"));
-				ov_room.AddItem(new OverviewItem("Object events", icon: "🧳"));
-				ov_room.AddItem(new OverviewItem("Hotspot events", icon: "🔥"));
-				ov_room.AddItem(new OverviewItem("Region events", icon: "☁️"));
+				ov_room.AddItem(new OverviewItem(EventCarrier.Rooms, "Room events", icon: "🏠"));
+				ov_room.AddItem(new OverviewItem(EventCarrier.Objects, "Object events", icon: "🧳"));
+				ov_room.AddItem(new OverviewItem(EventCarrier.Hotspots, "Hotspot events", icon: "🔥"));
+				ov_room.AddItem(new OverviewItem(EventCarrier.Regions, "Region events", icon: "☁️"));
 				ov_folder.AddItem(ov_room);
 			}
 		}
