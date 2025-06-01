@@ -166,12 +166,13 @@ namespace AgsEventAdder
 			if (lvi?.Content is not OverviewItem selected)
 				return;
 			// Work out what has been selected
+			if (selected is CharacterTable)
+			{
+				OverviewTV_Characters_MouseDoubleClick();
+			}
 			switch (selected.EventCarrier)
 			{
 				default:
-					return;
-				case EventCarrier.Characters:
-					OverviewTV_Characters_MouseDoubleClick();
 					return;
 				case EventCarrier.Guis:
 					OverviewTV_Guis_MouseDoubleClick();

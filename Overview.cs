@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -13,67 +14,159 @@ namespace AgsEventAdder
 	/// <summary>
 	/// A component (leaf or folder) of the overview tree
 	/// </summary>
-	public abstract class OverviewCompo
+	public abstract class OverviewCompo: INotifyPropertyChanged
 	{
-		public EventCarrier EventCarrier { get; set; }
-		public string Name { get; set; }
-		public OverviewCompo Parent { get; set; } = null;
+		public EventCarrier EventCarrier 
+		{ 
+			get => _event_carrier;
+			set
+			{
+				if (_event_carrier == value)
+					return;
 
-		/// <summary>
-		/// Sum of all discrepancies of direct or indirect items
-		/// </summary>
-		public int TotalDiscrepancyCount { get; protected set; } = 0;
+				_event_carrier = value;
+				OnPropertyChanged(nameof(EventCarrier));
+			}
+		}
+		private EventCarrier _event_carrier;
 
-		private int _discrepancy_count = 0;
+		public string Name
+		{
+			get => _name;
+
+			set
+			{
+				if (_name == value)
+					return;
+
+				_name = value;
+				OnPropertyChanged(nameof(Name));
+			}
+		}
+		private string _name;
+
+		public OverviewFolder Parent { 
+			get => _parent;
+			set
+			{
+				if (_parent == value)
+					return;
+
+				_parent = value;
+				OnPropertyChanged(nameof(Parent));
+			}
+		}
+		private OverviewFolder _parent = null;
+
 		public int DiscrepancyCount
 		{
 			get => _discrepancy_count;
 			set
 			{
-				int diff = value - _discrepancy_count;
+				if (_discrepancy_count == value)
+					return;
 				_discrepancy_count = value;
-				for (OverviewCompo here = this; here != null; here = here.Parent)
-					here.TotalDiscrepancyCount += diff;
+				Parent?.UpdateDiscrepancyCount();
+				OnPropertyChanged(nameof(DiscrepancyCount));
 			}
 		}
-			
-		public bool UnsavedChanges { get; set; } = false;
+		private int _discrepancy_count = 0;
 
-		public void AddDiscrepancy(in int count = 1) => DiscrepancyCount += count;
+		public int ChangesPending 
+		{ 
+			get => _changes_pending;
+			set 
+			{
+				if (_changes_pending == value)
+					return;
+
+				_changes_pending = value;
+				Parent?.UpdateChangesPending();
+				OnPropertyChanged(nameof(ChangesPending));
+			}  
+		}
+		private int _changes_pending = 0;
+
+		/// <summary>
+		/// Notify UI elements whenever a property has changed
+		/// </summary>
+		public event PropertyChangedEventHandler PropertyChanged;
+
+		protected void OnPropertyChanged(string propertyName)
+		{
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+		}
 	}
 
 
 	public class OverviewFolder : OverviewCompo
 	{
-		public ObservableCollection<OverviewCompo> Items { get; set; } = [];
+		public ObservableCollection<OverviewCompo> Items 
+		{ 
+			get => _items;
+			set
+			{
+				if (value == _items)
+					return;
+
+				_items = value;
+				OnPropertyChanged(nameof(Items));
+			}	
+		} 
+		private ObservableCollection<OverviewCompo> _items = [];
 
 		public OverviewFolder(in string name)
 		{
 			Name = name;
 		}
 
-		public void AddItem(in OverviewCompo o)
+		public void AddItem(OverviewCompo o)
 		{
 			Items.Add(o);
 			o.Parent = this;
 		}
+
+		public void UpdateDiscrepancyCount() 
+			=> DiscrepancyCount = Items.Sum(item => item.DiscrepancyCount);
+		public void UpdateChangesPending() => ChangesPending = Items.Sum(item => item.ChangesPending);
 	}
 
-	public class OverviewRoom : OverviewFolder
+	public class OverviewRoom(in string desc, in int number) : OverviewFolder(name: desc)
 	{
-		public int Number { get; set; }
+		public int Number
+		{
+			get => _number;
+			set
+			{
+				if (_number == value)
+					return;
 
-		public OverviewRoom(in string desc, in int number)
-			: base(name: desc) => Number = number;
+				_number = value;
+				OnPropertyChanged(nameof(Number));
+			}
+		}
+		int _number = number;
 	}
 
 	public class OverviewItem : OverviewCompo
 	{
-		public string Icon { get; set; } = null;
-
-		public OverviewItem(in EventCarrier c, in string name, in string icon = null)
+		public string Icon 
 		{
-			EventCarrier = c;
+			get => _icon;
+			set
+			{ 
+				if (_icon == value) 
+					return;
+
+				_icon = value;
+				OnPropertyChanged(nameof(Icon));
+			}
+		}
+		private string _icon = null;
+
+		public OverviewItem(EventCarrier carrier, string name, string icon = null)
+		{
+			EventCarrier = carrier;
 			Name = name;
 			Icon = icon;
 		}
@@ -81,26 +174,30 @@ namespace AgsEventAdder
 
 	public class Overview
 	{
-
 		public OverviewFolder Root { get; set; }
 
-		public Overview(in XDocument tree)
+		public Overview(AgsGame game)
 		{
 			Root = new("Game");
 			OverviewFolder gi = new("Global Items");
-			gi.AddItem(new OverviewItem(EventCarrier.Characters, "Character events", icon: "🧑"));
+			Root.AddItem(gi);
+			gi.AddItem(new CharacterTable().Init(game.Tree, game.EventDescs, game.GlobalFunctions));
 			gi.AddItem(new OverviewItem(EventCarrier.InvItems, "Inventory events", icon: "☕"));
 			gi.AddItem(new OverviewItem(EventCarrier.Guis, "GUI and GUIComponent events", icon: "🖥️"));
-			Root.AddItem(gi);
+			// The stats that have been found during creation of the items haven't been
+			// propagated to 'gi' yet because their 'Parent' is only set after creation.
+			// So we must update them now.
+			gi.UpdateChangesPending();
+			gi.UpdateDiscrepancyCount();
+			
 
 			OverviewFolder rooms = new("Rooms");
-
-			var xfolder = tree.Root.ElementOrThrow("Game")
+			Root.AddItem(rooms);
+			var xfolder = game.Tree.Root.ElementOrThrow("Game")
 				.ElementOrThrow("Rooms")
 				.ElementOrThrow("UnloadedRoomFolder")
 				.CheckAttributeOrThrow("Name", "Main");
 			ProcessRoomFolder(xfolder, rooms);
-			Root.AddItem(rooms);
 		}
 
 		private void ProcessRoomFolder(in XElement xfolder, in OverviewFolder ov_folder)
@@ -131,12 +228,89 @@ namespace AgsEventAdder
 					desc = "((No description))";
 
 				OverviewRoom ov_room = new(number: number, desc: desc);
+				ov_folder.AddItem(ov_room);
 				ov_room.AddItem(new OverviewItem(EventCarrier.Rooms, "Room events", icon: "🏠"));
 				ov_room.AddItem(new OverviewItem(EventCarrier.Objects, "Object events", icon: "🧳"));
 				ov_room.AddItem(new OverviewItem(EventCarrier.Hotspots, "Hotspot events", icon: "🔥"));
 				ov_room.AddItem(new OverviewItem(EventCarrier.Regions, "Region events", icon: "☁️"));
-				ov_folder.AddItem(ov_room);
+				// The stats that have been found during creation of the items haven't been
+				// propagated to 'ov_room' yet because their 'Parent' is only set after creation.
+				// So we must update now.
+				ov_room.UpdateChangesPending();
+				ov_room.UpdateDiscrepancyCount();
 			}
 		}
+	}
+
+	/// <summary>
+	/// A sequence of facts of events.
+	/// The specific table line will add key fields that specify to which
+	/// entity these events pertain, e.g., the character for character events.
+	/// </summary>
+	/// <param name="parent">The object that contains the table</param>
+	public abstract class TableLine(TableOverviewItem parent)
+	{
+		public List<EventFacts> Facts 
+		{
+			get => _facts; 
+			set
+			{
+				if (_facts == value) 
+					return;
+
+				_facts = value;
+			}
+		}
+		private List<EventFacts> _facts;
+
+		/// <summary>
+		/// The number of table fields that contain changes 
+		/// that haven't been written to file yet
+		/// </summary>
+		public int ChangesPending
+		{
+			get => _changes_pending;
+			set
+			{
+				if (_changes_pending == value)
+					return;
+
+				_changes_pending = value;
+				_parent?.UpdateChangesPending();
+			}
+		}
+		private int _changes_pending;
+
+		/// <summary>
+		/// The number of table fields that contain discrepancies
+		/// </summary>
+		public int DiscrepancyCount
+		{
+			get => _discrepancy_count;
+			set
+			{
+				if (value == _discrepancy_count)
+					return;
+
+				_discrepancy_count = value;
+				_parent?.UpdateDiscrepancyCount();
+			}
+		}
+		int _discrepancy_count;
+
+		/// <summary>
+		/// Must be called whenever an element of Facts has changes to their field 'HasPendingChanges'
+		/// </summary>
+		public void UpdateChangesPending() => ChangesPending = Facts.Sum(fact => Convert.ToInt32(fact.HasPendingChanges));
+
+		/// <summary>
+		/// Must be called whenever an element of Facts has changes to their field, 'HasDiscrepancy'
+		/// </summary>
+		public void UpdateDiscrepancyCount() => DiscrepancyCount = Facts.Sum(fact => Convert.ToInt32(fact.HasDiscrepancy));
+
+		/// <summary>
+		/// The object that contains the table for this line
+		/// </summary>
+		private readonly TableOverviewItem _parent = parent;
 	}
 }

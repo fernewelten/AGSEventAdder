@@ -223,7 +223,7 @@ namespace AgsEventAdder
 			// Loop through the symbols, wait for a func declaration
 			while (true)
 			{
-				string last_read = null;
+				string last_read;
 				do // exactly 1 time
 				{
 					// Try to read a type

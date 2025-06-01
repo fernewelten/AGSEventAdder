@@ -299,6 +299,7 @@
                           Grid.Row="1">
                     <TreeView.Resources>
                         <sys:String x:Key="Discrepancies">Discrepancies:&#160;</sys:String>
+                        <sys:String x:Key="HasChangesPending">✍</sys:String>
                         <!-- The sequence of declarations is important here, without any good reason.
                              "<DataTemplate …> must come _first_, only then can 
                              "<HierarchicalDataTemplate …>" follow. Otherwise, you'll get a 
@@ -314,9 +315,26 @@
                                         <Run Text="{Binding Name, Mode=OneWay}" />
                                     </TextBlock>
                                     <TextBlock>
-                                         <Run Text=" "/>
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="Red"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding DiscrepancyCount}" Value="0">
+                                                        <Setter Property="FontWeight" Value="Normal"/>
+                                                        <Setter Property="Foreground" Value="Black"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                         <Run Text=" – "/>
                                          <Run Text="{StaticResource Discrepancies}"/>
                                          <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <TextBlock Visibility="{Binding ChangesPending, Mode=OneWay, Converter={StaticResource CollapsedWhen0}}">
+                                        <Run Text=" – "/>
+                                        <Run Text="{StaticResource HasChangesPending}" />
+                                        <Run Text="{Binding ChangesPending, Mode=OneWay}" />
                                     </TextBlock>
                                 </StackPanel>
                             </ListViewItem>
@@ -333,16 +351,16 @@
                                             <Setter Property="FontWeight" Value="Bold"/>
                                             <Setter Property="Foreground" Value="Red"/>
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding TotalDiscrepancyCount}" Value="0">
+                                                <DataTrigger Binding="{Binding DiscrepancyCount}" Value="0">
                                                     <Setter Property="FontWeight" Value="Normal"/>
                                                     <Setter Property="Foreground" Value="Black"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
-                                    <Run Text=" "/>
+                                    <Run Text=" – "/>
                                     <Run Text="{StaticResource Discrepancies}"/>
-                                    <Run Text="{Binding TotalDiscrepancyCount, Mode=OneWay}"/>
+                                    <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
                                 </TextBlock>
                             </StackPanel>
                         </HierarchicalDataTemplate>
@@ -363,16 +381,16 @@
                                             <Setter Property="FontWeight" Value="Bold"/>
                                             <Setter Property="Foreground" Value="Red"/>
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding TotalDiscrepancyCount}" Value="0">
+                                                <DataTrigger Binding="{Binding DiscrepancyCount}" Value="0">
                                                     <Setter Property="FontWeight" Value="Normal"/>
                                                     <Setter Property="Foreground" Value="Black"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
-                                    <Run Text=" "/>
+                                    <Run Text=" – "/>
                                     <Run Text="{StaticResource Discrepancies}"/>
-                                    <Run Text="{Binding TotalDiscrepancyCount, Mode=OneWay}"/>
+                                    <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
                                 </TextBlock>
                             </StackPanel>
                         </HierarchicalDataTemplate>

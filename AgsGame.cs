@@ -40,7 +40,7 @@ namespace AgsEventAdder
 
 		public CharacterTable CharacterTable { get; set; } = null;
 
-		private XDocument Tree { get; set; }
+		public XDocument Tree { get; set; }
 
 		/// <summary>
 		/// Initialize the object, when the tree is already loaded
@@ -48,13 +48,12 @@ namespace AgsEventAdder
 		private void Init()
 		{
 			InitDesc();
-			InitOverview();
 			InitEventDescs();
 			InitGlobalHeaders();
 			InitGlobalFunctions();
-			InitCharacterTable();
+			InitOverview();
 		}
-		
+
 		private void InitDesc()
 		{
 			List<String> desc_list = [];
@@ -77,7 +76,7 @@ namespace AgsEventAdder
 				Desc = "AGS Game";
 		}
 
-		private void InitOverview() => Overview = new(Tree);
+		private void InitOverview() => Overview = new(this);
 
 		private void InitEventDescs() => EventDescs = new(Tree);
 
@@ -105,11 +104,6 @@ namespace AgsEventAdder
 			var preprocessor = new Preprocessor(reader);
 			var scanner = new Scanner(preprocessor);
 			scanner.CollectDeclaredFunctions(GlobalFunctions);
-		}
-
-		private void InitCharacterTable()
-		{
-			CharacterTable = new(Tree, EventDescs, GlobalFunctions);
 		}
 
 		private AgsGame() { }
