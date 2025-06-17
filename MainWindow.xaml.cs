@@ -1,25 +1,18 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.ComponentModel;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using System.Globalization;
-
-using Microsoft.Win32;
-using System.IO;
-using System.Security.Cryptography;
-using System.ComponentModel;
-using System.Windows.Controls.Primitives;
-using System.Runtime.CompilerServices;
+using static AgsEventAdder.XamlExtensions;
 
 namespace AgsEventAdder
 {
@@ -38,7 +31,7 @@ namespace AgsEventAdder
 
 			GamePathTxt.Text = GamePathTxt.FindResource("Prompt") as String;
 
-			GamePathOFD = new OpenFileDialog()
+			_game_path_ofd = new OpenFileDialog()
 			{
 				AddExtension = true,
 				CheckFileExists = true,
@@ -52,14 +45,14 @@ namespace AgsEventAdder
 		}
 
 		/// <summary>
-		/// For Open File dialogs that ask for a game path
+		/// For Open File dialogs that ask for a game in_roster_path
 		/// </summary>
-		private readonly OpenFileDialog GamePathOFD = null;
+		private readonly OpenFileDialog _game_path_ofd = null;
 
 		private void GamePathBrowseBtn_Click(object sender, RoutedEventArgs e)
 		{
-			if (GamePathOFD.ShowDialog()?? false)
-				GamePathTxt.Text = GamePathOFD.FileName;
+			if (_game_path_ofd.ShowDialog() ?? false)
+				GamePathTxt.Text = _game_path_ofd.FileName;
 		}
 
 		private void GamePathTxt_TextChanged(object sender, TextChangedEventArgs e)
@@ -82,7 +75,7 @@ namespace AgsEventAdder
 			GameDescBlock.Text = "";
 			App app = Application.Current as App;
 			// The prompt text is displayed in lieu of "" 
-			String prompt = GamePathTxt.FindResource("Prompt") as String;
+			string prompt = GamePathTxt.FindResource("Prompt") as string;
 			if (changed_text == prompt && app?.AgsGame is null)
 				// All ready and done. Still no game selected
 				return;
@@ -101,19 +94,33 @@ namespace AgsEventAdder
 				return;
 			}
 
-			AgsGame.Factory(GamePathTxt.Text, out AgsGame game, out String errtext);
+			AgsGame.Factory(GamePathTxt.Text, out AgsGame game, out string errtext);
 			if (game is null)
 			{
 				if (String.IsNullOrEmpty(errtext))
-					errtext = GamePathErrorTxt.FindResource("Default") as String;
+					errtext = GamePathErrorTxt.FindResource("Default") as string;
 				GamePathErrorTxt.Text = errtext;
 				return;
 			}
+
+			game.Overview.Root.PropertyChanged += notify_app_about_changes_pending;
 
 			GamePathErrorTxt.Text = "";
 			app.AgsGame = game;
 			GameDescBlock.Text = game.Desc;
 			OverviewTV.ItemsSource = game.Overview.Root.Items;
+			SetDataGridFactColumns(CharacterDGrid, 3, game.EventDescs.CharacterEvents);
+
+			static void notify_app_about_changes_pending(object? sender, PropertyChangedEventArgs e)
+			{
+				if (sender is not OverviewCompo oc)
+					return;
+				if (Application.Current is not App app || app is null)
+					return;
+				if (e.PropertyName != nameof(oc.ChangesPending))
+					return;
+				app.ChangesPending = oc.ChangesPending;
+			}
 		}
 
 
@@ -129,12 +136,12 @@ namespace AgsEventAdder
 			if (app?.AgsGame is null)
 				// All done because no game is open
 				return String.IsNullOrEmpty(changed_path);
-			
-			if ((bool)this.FindResource("ChangesPending")) 
+
+			if ((bool)this.FindResource("ChangesPending"))
 				return MessageBox.Show(
-					"Discard all pending changes?", 
-					"Game is already open", 
-					MessageBoxButton.OKCancel, 
+					"Discard all pending changes?",
+					"Game is already open",
+					MessageBoxButton.OKCancel,
 					MessageBoxImage.Exclamation) == MessageBoxResult.Cancel;
 
 			app.AgsGame.Unlock();
@@ -163,16 +170,14 @@ namespace AgsEventAdder
 		private void OverviewTV_MouseDoubleClick(object sender, MouseButtonEventArgs e)
 		{
 			var lvi = sender as ListViewItem;
-			if (lvi?.Content is not OverviewItem selected)
+			if (lvi?.DataContext is not OverviewItem selected)
 				return;
-			// Work out what has been selected
-			if (selected is CharacterTable)
-			{
-				OverviewTV_Characters_MouseDoubleClick();
-			}
 			switch (selected.EventCarrier)
 			{
 				default:
+					return;
+				case EventCarrier.Characters:
+					OverviewTV_Characters_MouseDoubleClick(selected as CharacterTable);
 					return;
 				case EventCarrier.Guis:
 					OverviewTV_Guis_MouseDoubleClick();
@@ -190,7 +195,7 @@ namespace AgsEventAdder
 					{
 						int room = GetRoomFromOverviewItem(selected);
 						OverviewTV_Objects_MouseDoubleClick(room);
-							return;
+						return;
 					}
 				case EventCarrier.Regions:
 					{
@@ -207,7 +212,7 @@ namespace AgsEventAdder
 			}
 		}
 
-		int GetRoomFromOverviewItem(in OverviewItem oit)
+		private static int GetRoomFromOverviewItem(OverviewItem oit)
 		{
 			for (OverviewCompo compo = oit; compo is not null; compo = compo.Parent)
 				if (compo is OverviewRoom)
@@ -216,9 +221,180 @@ namespace AgsEventAdder
 			return -1;
 		}
 
-		private void OverviewTV_Characters_MouseDoubleClick()
+		private void OverviewTV_Characters_MouseDoubleClick(CharacterTable selected)
 		{
-			throw new NotImplementedException();
+			CharacterGrid.Visibility = Visibility.Visible;
+			OverviewGrid.Visibility = Visibility.Collapsed;
+			CharacterDGrid.ItemsSource = selected.Lines;
+			// Stash the informaion about what table is shown in 'Tag' so that we
+			// can get at the underlying table when we've got the data grid
+			CharacterDGrid.Tag = selected;
+		}
+
+		/// <summary>
+		/// Dynamically create the columns that pertain to the events in 'desc'
+		/// </summary>
+		/// <param name="descs"></param>
+		/// <exception cref="NotImplementedException"></exception>
+		private static void SetDataGridFactColumns(DataGrid dgrid, int fixed_column_count, List<EventDesc> descs)
+		{
+			var cols = dgrid.Columns;
+			while (cols.Count > fixed_column_count)
+				cols.RemoveAt(cols.Count - 1);
+
+			var facts_column_cm = dgrid.FindResource("FactsColumnCtxMenu") as ContextMenu;
+			var facts_cell_cm = dgrid.FindResource("FactsCellCtxMenu") as ContextMenu;
+
+			for (var desc_idx = 0; desc_idx < descs.Count; desc_idx++)
+			{
+				var outermost_stckp = new FrameworkElementFactory(typeof(StackPanel));
+				outermost_stckp.SetValue(
+					StackPanel.OrientationProperty,
+					Orientation.Vertical);
+				var new_compo = MakeComponentForNew(desc_idx, facts_cell_cm);
+				outermost_stckp.AppendChild(new_compo);
+				var current_compo = MakeComponentForCurrent(desc_idx);
+				outermost_stckp.AppendChild(current_compo);
+				outermost_stckp.SetValue(
+					StackPanel.ContextMenuProperty,
+					facts_cell_cm);
+				outermost_stckp.SetValue(
+					StackPanel.TagProperty,
+					desc_idx);
+
+				var dgrid_template = new DataTemplate
+				{
+					VisualTree = outermost_stckp
+				};
+				
+				// Wrap a StackPanel around the header_stkp text so that this StackPanel
+				// can get the column header context menu
+				var header_stckp = new StackPanel
+				{
+					Children = { new TextBlock { Text = descs[desc_idx].Name } },
+					ContextMenu = facts_column_cm,
+					Tag = desc_idx,
+				};
+				dgrid.Columns.Add(
+					new DataGridTemplateColumn()
+					{
+						Header = header_stckp,
+						CellTemplate = dgrid_template,
+					});
+			}
+
+			FrameworkElementFactory MakeComponentForNew(int desc_idx, ContextMenu main_cm)
+			{
+				var stackpanel = new FrameworkElementFactory(typeof(StackPanel));
+				stackpanel.SetValue(
+					StackPanel.OrientationProperty,
+					Orientation.Horizontal);
+				var in_roster_txtbx = new FrameworkElementFactory(typeof(TextBox));
+				stackpanel.AppendChild(in_roster_txtbx);
+				var in_roster_txtbx_name = NewRandomXamlName();
+				in_roster_txtbx.SetValue(
+					TextBox.NameProperty,
+					in_roster_txtbx_name);
+				var in_roster_txtbx_path = $"Facts[{desc_idx}].NewInRoster";
+				in_roster_txtbx.SetValue(
+					TextBox.TextProperty,
+					new Binding(in_roster_txtbx_path)
+					{
+						Mode = BindingMode.TwoWay,
+						UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+					});
+				in_roster_txtbx.SetValue(
+					TextBox.ContextMenuProperty,
+					main_cm);
+
+				var in_code_stackpanel = MakeComponentForInCode(desc_idx, in_roster_txtbx_name);
+				stackpanel.AppendChild(in_code_stackpanel);
+				
+				return stackpanel;
+			}
+
+			
+
+			FrameworkElementFactory MakeComponentForInCode(int desc_idx, string in_roster_compo_name)
+			{
+				var not_in_code_mbinding = new MultiBinding()
+				{
+					Converter = new HiddenWhenInCodeMConverter(),
+				};
+				not_in_code_mbinding.Bindings.Add(new Binding($"Facts[{desc_idx}].NewIsInCode"));
+				not_in_code_mbinding.Bindings.Add(new Binding($"Facts[{desc_idx}].NewInRoster"));
+
+				var stackpanel = new FrameworkElementFactory(typeof(StackPanel));
+				stackpanel.SetValue(
+					StackPanel.OrientationProperty,
+					Orientation.Horizontal);
+				stackpanel.SetBinding(
+					Label.VisibilityProperty,
+					not_in_code_mbinding);
+				var not_in_code_lbl = new FrameworkElementFactory(typeof(Label));
+				stackpanel.AppendChild(not_in_code_lbl);
+				not_in_code_lbl.SetValue(
+					Label.VisibilityProperty,
+					new Binding($"Facts[{desc_idx}].MustAddStubToCode")
+					{
+						Mode = BindingMode.OneWay,
+						Converter = new CollapsedWhenTrueConverter(),
+					});
+				not_in_code_lbl.SetResourceReference(
+					Label.ContentProperty,
+					"NotInCode");
+				var target_binding = new Binding() { ElementName = in_roster_compo_name, };
+				not_in_code_lbl.SetValue(
+					Label.TargetProperty,
+					target_binding);
+				var add_to_code_lbl = new FrameworkElementFactory(typeof(Label));
+				stackpanel.AppendChild(add_to_code_lbl);
+				add_to_code_lbl.SetValue(
+					Label.VisibilityProperty,
+					new Binding($"Facts[{desc_idx}].MustAddStubToCode")
+					{
+						Mode = BindingMode.OneWay,
+						Converter = new CollapsedWhenFalseConverter(),
+					});
+				add_to_code_lbl.SetResourceReference(
+					Label.ContentProperty,
+					"AddToCode");
+				add_to_code_lbl.SetValue(
+					Label.TargetProperty,
+					target_binding);
+				return stackpanel;
+			}
+
+			FrameworkElementFactory MakeComponentForCurrent(int desc_idx)
+			{
+				var roster_change_mbinding = new MultiBinding()
+				{
+					Converter = new CollapsedWhenEqualMConverter(),
+				};
+				roster_change_mbinding.Bindings.Add(new Binding($"Facts[{desc_idx}].CurrentInRoster"));
+				roster_change_mbinding.Bindings.Add(new Binding($"Facts[{desc_idx}].NewInRoster"));
+				var in_roster_txtblk = new FrameworkElementFactory(typeof(TextBlock));
+				in_roster_txtblk.SetBinding(
+					TextBlock.VisibilityProperty,
+					roster_change_mbinding);
+				in_roster_txtblk.SetValue(
+					TextBlock.ForegroundProperty,
+					new SolidColorBrush(Color.FromRgb(60, 60, 60)));
+				in_roster_txtblk.SetValue(
+					TextBlock.TextDecorationsProperty,
+					TextDecorations.Strikethrough);
+				in_roster_txtblk.SetValue(
+					TextBlock.FontStyleProperty,
+					FontStyles.Italic);
+				in_roster_txtblk.SetValue(
+					TextBlock.VerticalAlignmentProperty,
+					VerticalAlignment.Center);
+				var in_roster_path = $"Facts[{desc_idx}].CurrentInRoster";
+				in_roster_txtblk.SetValue(
+					TextBlock.TextProperty,
+					new Binding() { Path = new PropertyPath(in_roster_path), });
+				return in_roster_txtblk;
+			}
 		}
 
 		private void OverviewTV_Guis_MouseDoubleClick()
@@ -251,7 +427,6 @@ namespace AgsEventAdder
 			throw new NotImplementedException();
 		}
 
-
 		private void CommitAll_Click(object sender, RoutedEventArgs e)
 		{
 			throw new NotImplementedException();
@@ -261,86 +436,289 @@ namespace AgsEventAdder
 		{
 			throw new NotImplementedException();
 		}
-	}
 
-	/// <summary>
-	/// Empty strings convert to Collapsed, all others to Visible
-	/// </summary>
-	public class CollapsedWhenEmptyConverter: IValueConverter
-	{
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+		private void BackFromCharactersButton_Click(object sender, RoutedEventArgs e)
 		{
-			return (String.IsNullOrWhiteSpace(value as String)) ?
-				Visibility.Collapsed : Visibility.Visible;
+			CharacterGrid.Visibility = Visibility.Collapsed;
+			OverviewGrid.Visibility = Visibility.Visible;
 		}
 
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+		private void FactsColumn_AddDefaultEvents_Click(object sender, RoutedEventArgs e)
 		{
-			throw new NotImplementedException();
-		}
-	}
+			bool failed = GetColumnIdentification(sender, out DataGrid data_grid, out TableOverviewItem toi, out int facts_index);
+			if (failed)
+				return;
 
-	/// <summary>
-	/// 'false' converts to Collapsed, all others to Visible
-	/// </summary>
-	public class CollapsedWhenFalseConverter : IValueConverter
-	{
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+			toi.InsertDefaultWhereverEmpty(data_grid.SelectedItems, facts_index, true);
+		}
+
+		private void FactsColumn_AddMissingEventsToCode_Click(object sender, RoutedEventArgs e)
 		{
-			try
+			bool failed = GetColumnIdentification(sender, out DataGrid data_grid, out TableOverviewItem toi, out int facts_index);
+			if (failed)
+				return;
+
+			toi.AddEventsToCodeWheneverMissing(data_grid.SelectedItems, facts_index);
+		}
+
+		private void FactsColumn_ClearEventsWithoutCode_Click(object sender, RoutedEventArgs e)
+		{
+			bool failed = GetColumnIdentification(sender, out DataGrid data_grid, out TableOverviewItem toi, out int facts_index);
+			if (failed)
+				return;
+
+			toi.ClearEventsWithoutCode(data_grid.SelectedItems, facts_index);
+		}
+
+		private void FactsColumn_CancelAllPendingChanges_Click(object sender, RoutedEventArgs e)
+		{
+			bool failed = GetColumnIdentification(sender, out DataGrid data_grid, out TableOverviewItem toi, out int facts_index);
+			if (failed)
+				return;
+
+			toi.CancelAllPendingChanges(data_grid.SelectedItems, facts_index);
+		}
+
+		private static bool GetColumnIdentification(object sender, out DataGrid data_grid, out TableOverviewItem toi, out int facts_index)
+		{
+			data_grid = null;
+			toi = null;
+			facts_index = -1;
+
+			if (sender is not MenuItem mi ||
+				mi.Parent is not ContextMenu cm ||
+				cm.PlacementTarget is not StackPanel header_stckp ||
+				header_stckp is null ||
+				header_stckp.Tag is not int facts_index_tag)
+				return true;
+
+			data_grid = FindParent<DataGrid>(header_stckp);
+			if (data_grid is null ||
+				data_grid.Tag is not TableOverviewItem toi_tag)
+				return true;
+			
+			toi = toi_tag;
+			facts_index = facts_index_tag;
+			return false;
+		}
+
+		private void FactsCell_ChangeToDefaultAddStub_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is not MenuItem menu_item)
+				return;
+			EventFacts facts = GetEventFactsFromMenuItem(menu_item);
+			if (facts is null)
+				return;
+
+			facts.ChangeToDefault();
+			facts.AddStubToCode();
+		}
+
+		private void FactsCell_ChangeToDefaultEvent_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is not MenuItem menu_item)
+				return;
+			EventFacts facts = GetEventFactsFromMenuItem(menu_item);
+			if (facts is null)
+				return;
+
+			facts.ChangeToDefault();
+		}
+
+		private void FactsCell_ChangeToCurrentEvent_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is not MenuItem menu_item)
+				return;
+			EventFacts facts = GetEventFactsFromMenuItem(menu_item);
+			if (facts is null)
+				return;
+
+			facts.ChangeToCurrent();
+		}
+
+		private void FactsCell_AddMissingStubToCode_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is not MenuItem menu_item)
+				return;
+			EventFacts facts = GetEventFactsFromMenuItem(menu_item);
+			if (facts is null)
+				return;
+
+			facts.AddStubToCode();
+		}
+
+		private void FactsCell_DontAddStubToCode_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is not MenuItem menu_item)
+				return;
+			EventFacts facts = GetEventFactsFromMenuItem(menu_item);
+			if (facts is null)
+				return;
+
+			facts.DontAddToCode();
+		}
+
+
+		private void FactsCell_ClearEvent_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is not MenuItem menu_item)
+				return;
+			EventFacts facts = GetEventFactsFromMenuItem(menu_item);
+			if (facts is null)
+				return;
+
+			facts.ClearEvent();
+		}
+
+		private void FactsCell_CancelPendingChanges_Click(object sender, RoutedEventArgs e)
+		{
+			if (sender is not MenuItem menu_item)
+				return;
+			EventFacts facts = GetEventFactsFromMenuItem(menu_item);
+			if (facts is null)
+				return;
+
+			facts.CancelPendingChanges();
+		}
+
+		private static EventFacts? GetEventFactsFromMenuItem(MenuItem menu_item)
+		{
+			if (menu_item.Parent is not ContextMenu context_menu)
+				return null;
+			return GetEventFactsFromContextMenu(context_menu);
+		}
+
+		/// <summary>
+		/// Customize the context menu that opens when user clicks on a cell
+		/// </summary>
+		/// <param name="sender">The context menu</param>
+		/// <param name="e">(unused)</param>
+		private void FactsCellCtxMenu_Opened(object sender, RoutedEventArgs e)
+		{
+			if (sender is not ContextMenu context_menu)
+				return;
+			EventFacts facts = GetEventFactsFromContextMenu(context_menu);
+			if (facts is null)
+				return;
+
+			foreach (var item in context_menu.Items.OfType<MenuItem>())
 			{
-				bool v = (bool)value;
-				return v ? Visibility.Visible : Visibility.Collapsed;
+				// Retrieve the original prototype header from resources
+				if (item.TryFindResource("header") is string header && header is not null)
+					item.Header = header;
+				switch (item.Name)
+				{
+					case "FactsCellCtxItem_ChangeToDefaultAddStub":
+						item.Visibility = Visibility.Visible;
+						if (string.IsNullOrEmpty(facts.DefaultName) ||
+							facts.NewInRoster.Trim() == facts.DefaultName ||
+							facts.NewIsInCode)
+							item.Visibility = Visibility.Collapsed;
+						item.Header = string.Format(item.Header as string, facts.DefaultName);
+						break;
+
+					case "FactsCellCtxItem_ChangeToDefault":
+						item.Visibility = Visibility.Visible;
+						if (string.IsNullOrEmpty(facts.DefaultName) ||
+							facts.NewInRoster.Trim() == facts.DefaultName)
+							item.Visibility = Visibility.Collapsed;
+						item.Header = string.Format(item.Header as string, facts.DefaultName);
+						break;
+
+					case "FactsCellCtxItem_ChangeToCurrent":
+						item.Visibility = Visibility.Visible;
+						if (string.IsNullOrEmpty(facts.CurrentInRoster) || 
+							facts.NewInRoster.Trim() == facts.CurrentInRoster ||
+							facts.CurrentInRoster == facts.DefaultName)
+							item.Visibility = Visibility.Collapsed;
+						item.Header = string.Format(item.Header as string, facts.CurrentInRoster);
+						break;
+
+					case "FactsCellCtxItem_AddStub":
+						item.Visibility = Visibility.Visible;
+						if (string.IsNullOrEmpty(facts.NewInRoster) ||
+							facts.NewIsInCode ||
+							facts.MustAddStubToCode)
+							item.Visibility = Visibility.Collapsed;
+						item.Header = string.Format(item.Header as string, facts.NewInRoster);
+						break;
+
+					case "FactsCellCtxItem_NoAddStub":
+						item.Visibility = Visibility.Visible;
+						if (string.IsNullOrEmpty(facts.NewInRoster) ||
+							facts.NewIsInCode ||
+							!facts.MustAddStubToCode)
+							item.Visibility = Visibility.Collapsed;
+						item.Header = string.Format(item.Header as string, facts.NewInRoster);
+						break;
+
+
+					case "FactsCellCtxItem_ClearEvent":
+						item.Visibility = string.IsNullOrEmpty(facts.NewInRoster) ?
+							Visibility.Collapsed : Visibility.Visible;
+						break;
+
+					case "FactsCellCtxItem_CancelPendingChanges":
+						item.Visibility = facts.HasPendingChanges ?
+							Visibility.Visible : Visibility.Collapsed;
+						break;
+				}
 			}
-			catch
+		}
+
+		private static EventFacts? GetEventFactsFromContextMenu(ContextMenu context_menu)
+		{
+			if (context_menu is null ||
+				context_menu.PlacementTarget is not FrameworkElement placement_target ||
+				placement_target is null)
+				return null;
+
+			if (placement_target.DataContext is not TableLine table_line ||
+				table_line is null)
+				return null;
+
+			// Need to find the framework element that has the event index
+			while(placement_target is not null &&
+					(placement_target is not StackPanel ||
+					placement_target.Tag is not int))
 			{
-				return Visibility.Visible;
+				placement_target = FindParent<StackPanel>(placement_target);
 			}
+
+			var index = placement_target?.Tag;
+			if (index == null) 
+				return null;
+			return table_line.Facts[(int)placement_target.Tag];
 		}
 
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			throw new NotImplementedException();
-		}
-	}
 
-	/// <summary>
-	/// Null objects converted to Collapsed, all others to Visible
-	/// </summary>
-	public class CollapsedWhenNullConverter : IValueConverter
-	{
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			return (value is null) ? Visibility.Collapsed : Visibility.Visible;
-		}
 
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+		/// <summary>
+		/// Gets called whenever user left-clicks on a DataGrid.
+		/// Unselects the selected grid line when the click isn't on an interactive element.
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
 		{
-			throw new NotImplementedException(); 
-		}
-	}
-	
-	/// <summary>
-	/// Zero converted to Collapsed, all others to Visible
-	/// </summary>
-	public class CollapsedWhen0Converter : IValueConverter
-	{
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			try
-			{
-				int v = (int)value;
-				return v == 0? Visibility.Collapsed : Visibility.Visible;
-			}
-			catch
-			{
-				return Visibility.Visible;
-			}
+			if (sender is not DataGrid dgrid)
+				return;
+
+			// Ignore clicks on interactive elements so that those are processed normally.
+			if (e.OriginalSource is not DependencyObject clicked_element ||
+				IsInteractiveElement(clicked_element))
+				return;
+
+			if ((dgrid.SelectionMode == DataGridSelectionMode.Single && dgrid.SelectedItem is null) ||
+				dgrid.SelectedItems.Count == 0)
+				return;
+
+			dgrid.UnselectAllCells();
+			dgrid.UnselectAll();
+			_ = dgrid.Focus(); // Unfocus the last selected cell by focusing elsewhere
+			e.Handled = true; // Prevent default selection behavior
 		}
 
-		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			throw new NotImplementedException(); 
-		}
+
 	}
 }

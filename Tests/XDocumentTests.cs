@@ -1,12 +1,13 @@
-﻿using AgsEventAdder;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using AgsEventAdder;
+using static AgsEventAdder.XmlExtensions;
 
-namespace Tests
+namespace AgsEventAdder.Tests
 {
 	public class XDocumentTests
 	{
@@ -29,8 +30,8 @@ namespace Tests
 					() => root.ElementOrThrow("Holzschuh"));
 			var msg = ex.Message;
 			Assert.Equal(3, ex.GetLineNumber());
-			Assert.True(msg.IndexOf(value: "<AED") >= 0);
-			Assert.True(msg.IndexOf(value: "<Holzschuh") >= 0);
+			Assert.Contains("<AED", msg);
+			Assert.Contains("<Holzschuh", msg);
 		}
 			
 		[Fact]

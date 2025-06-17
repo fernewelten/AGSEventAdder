@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
 using System.Xml.Linq;
 
@@ -14,7 +12,7 @@ namespace AgsEventAdder
 	/// <summary>
 	/// A component (leaf or folder) of the overview tree
 	/// </summary>
-	public abstract class OverviewCompo: INotifyPropertyChanged
+	public abstract class OverviewCompo : INotifyPropertyChanged
 	{
 		public EventCarrier EventCarrier 
 		{ 
@@ -189,55 +187,56 @@ namespace AgsEventAdder
 			// So we must update them now.
 			gi.UpdateChangesPending();
 			gi.UpdateDiscrepancyCount();
-			
+
 
 			OverviewFolder rooms = new("Rooms");
 			Root.AddItem(rooms);
-			var xfolder = game.Tree.Root.ElementOrThrow("Game")
+			var xfolder = game.Tree.Root
+				.ElementOrThrow("Game")
 				.ElementOrThrow("Rooms")
 				.ElementOrThrow("UnloadedRoomFolder")
 				.CheckAttributeOrThrow("Name", "Main");
 			ProcessRoomFolder(xfolder, rooms);
-		}
 
-		private void ProcessRoomFolder(in XElement xfolder, in OverviewFolder ov_folder)
-		{
-			var xsubfolders = xfolder.ElementOrThrow("SubFolders");
-			foreach (XElement xsubfolder in xsubfolders.Elements())
+			static void ProcessRoomFolder(in XElement xfolder, in OverviewFolder ov_folder)
 			{
-				if (xsubfolder.Name != "UnloadedRoomFolder")
-					throw new AgsXmlParsingException(
-						$"'Found unexpected sub-element <{xsubfolder.Name}>' within <Subfolders>",
-						xsubfolder);
-				OverviewFolder ov_subf = new(xsubfolder.Attribute("Name").Value);
-				ov_folder.AddItem(ov_subf);
-				ProcessRoomFolder(xsubfolder, ov_subf);
-			}
+				var xsubfolders = xfolder.ElementOrThrow("SubFolders");
+				foreach (XElement xsubfolder in xsubfolders.Elements())
+				{
+					if (xsubfolder.Name != "UnloadedRoomFolder")
+						throw new AgsXmlParsingException(
+							$"'Found unexpected sub-element <{xsubfolder.Name}>' within <Subfolders>",
+							xsubfolder);
+					OverviewFolder ov_subf = new(xsubfolder.Attribute("Name").Value);
+					ov_folder.AddItem(ov_subf);
+					ProcessRoomFolder(xsubfolder, ov_subf);
+				}
 
-			var xrooms = xfolder.ElementOrThrow("UnloadedRooms");
-			foreach (XElement xroom in xrooms.Elements())
-			{
-				if (xroom.Name != "UnloadedRoom")
-					throw new AgsXmlParsingException(
-						$"'Found unexpected sub-element <{xroom.Name}>' within <UnloadedRooms>",
-						xroom);
-				int number = xroom.IntElementOrThrow("Number");
-				XElement desc_el = xroom.ElementOrThrow("Description");
-				string desc = desc_el.Value;
-				if (string.IsNullOrWhiteSpace(desc))
-					desc = "((No description))";
+				var xrooms = xfolder.ElementOrThrow("UnloadedRooms");
+				foreach (XElement xroom in xrooms.Elements())
+				{
+					if (xroom.Name != "UnloadedRoom")
+						throw new AgsXmlParsingException(
+							$"'Found unexpected sub-element <{xroom.Name}>' within <UnloadedRooms>",
+							xroom);
+					int number = xroom.IntElementOrThrow("Number");
+					XElement desc_el = xroom.ElementOrThrow("Description");
+					string desc = desc_el.Value;
+					if (string.IsNullOrWhiteSpace(desc))
+						desc = "((No description))";
 
-				OverviewRoom ov_room = new(number: number, desc: desc);
-				ov_folder.AddItem(ov_room);
-				ov_room.AddItem(new OverviewItem(EventCarrier.Rooms, "Room events", icon: "🏠"));
-				ov_room.AddItem(new OverviewItem(EventCarrier.Objects, "Object events", icon: "🧳"));
-				ov_room.AddItem(new OverviewItem(EventCarrier.Hotspots, "Hotspot events", icon: "🔥"));
-				ov_room.AddItem(new OverviewItem(EventCarrier.Regions, "Region events", icon: "☁️"));
-				// The stats that have been found during creation of the items haven't been
-				// propagated to 'ov_room' yet because their 'Parent' is only set after creation.
-				// So we must update now.
-				ov_room.UpdateChangesPending();
-				ov_room.UpdateDiscrepancyCount();
+					OverviewRoom ov_room = new(number: number, desc: desc);
+					ov_folder.AddItem(ov_room);
+					ov_room.AddItem(new OverviewItem(EventCarrier.Rooms, "Room events", icon: "🏠"));
+					ov_room.AddItem(new OverviewItem(EventCarrier.Objects, "Object events", icon: "🧳"));
+					ov_room.AddItem(new OverviewItem(EventCarrier.Hotspots, "Hotspot events", icon: "🔥"));
+					ov_room.AddItem(new OverviewItem(EventCarrier.Regions, "Region events", icon: "☁️"));
+					// The stats that have been found during creation of the items haven't been
+					// propagated to 'ov_room' yet because their 'Parent' is only set after creation.
+					// So we must update now.
+					ov_room.UpdateChangesPending();
+					ov_room.UpdateDiscrepancyCount();
+				}
 			}
 		}
 	}
@@ -248,7 +247,7 @@ namespace AgsEventAdder
 	/// entity these events pertain, e.g., the character for character events.
 	/// </summary>
 	/// <param name="parent">The object that contains the table</param>
-	public abstract class TableLine(TableOverviewItem parent)
+	public abstract class TableLine(TableOverviewItem parent) : INotifyPropertyChanged
 	{
 		public List<EventFacts> Facts 
 		{
@@ -259,9 +258,16 @@ namespace AgsEventAdder
 					return;
 
 				_facts = value;
+				OnPropertyChanged(nameof(Facts));
 			}
 		}
 		private List<EventFacts> _facts;
+
+		/// <summary>
+		/// The object that contains the table for this line
+		/// </summary>
+		public TableOverviewItem Parent => _parent;
+		private readonly TableOverviewItem _parent = parent;
 
 		/// <summary>
 		/// The number of table fields that contain changes 
@@ -277,6 +283,7 @@ namespace AgsEventAdder
 
 				_changes_pending = value;
 				_parent?.UpdateChangesPending();
+				OnPropertyChanged(nameof(ChangesPending));
 			}
 		}
 		private int _changes_pending;
@@ -294,6 +301,7 @@ namespace AgsEventAdder
 
 				_discrepancy_count = value;
 				_parent?.UpdateDiscrepancyCount();
+				OnPropertyChanged(nameof(DiscrepancyCount));
 			}
 		}
 		int _discrepancy_count;
@@ -309,8 +317,13 @@ namespace AgsEventAdder
 		public void UpdateDiscrepancyCount() => DiscrepancyCount = Facts.Sum(fact => Convert.ToInt32(fact.HasDiscrepancy));
 
 		/// <summary>
-		/// The object that contains the table for this line
+		/// Notify whenever a property has changed
 		/// </summary>
-		private readonly TableOverviewItem _parent = parent;
+		public event PropertyChangedEventHandler PropertyChanged;
+
+		protected void OnPropertyChanged(string propertyName)
+		{
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+		}
 	}
 }

@@ -4,14 +4,11 @@ using IO = System.IO;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Linq;
-using System.Security.AccessControl;
 using System.Security;
 using System.Windows.Controls;
 using System.Runtime.CompilerServices;
 using System.Collections.ObjectModel;
-using System.Runtime.Remoting.Messaging;
 
 namespace AgsEventAdder
 {
@@ -37,8 +34,6 @@ namespace AgsEventAdder
 		public HashSet<string> HeaderFunctions { get; private set; } = [];
 		
 		public HashSet<string> GlobalFunctions { get; private set; } = [];
-
-		public CharacterTable CharacterTable { get; set; } = null;
 
 		public XDocument Tree { get; set; }
 
@@ -113,19 +108,21 @@ namespace AgsEventAdder
 			if (String.IsNullOrEmpty(LockPath))
 				return;
 
-			// This is only a best-efforts try to delete the lock file
-			// If it doesn't work out, can't help it. 
 			try
 			{
 				File.Delete(LockPath);
 				LockPath = null;
 			}
 			catch
-			{ }
+			{ 
+				// Rats. Well we tried.
+			}
 		}
 
 		~AgsGame() 
 		{
+			// Destructors aren't guaranteed to ever be called, so this is only
+			// a last-ditch additional effort to get rid of the lock file
 			Unlock();
 		}
 

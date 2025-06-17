@@ -9,8 +9,10 @@ using System.Xml.Linq;
 
 namespace AgsEventAdder
 {
-	internal static class XmlExtensions
+	// Must not be 'internal' because tests refer to it
+	public static class XmlExtensions
 	{
+		// Must not be 'internal' because tests refer to it
 		/// <summary>
 		/// Find '.Element(name)'; if not there, throw exception
 		/// </summary>
@@ -18,7 +20,7 @@ namespace AgsEventAdder
 		/// <param name="name">Name of child element</param>
 		/// <returns>The child element</returns>
 		/// <exception cref="AgsXmlParsingException"></exception>
-		internal static XElement ElementOrThrow(this XElement el, XName name) =>
+		public static XElement ElementOrThrow(this XElement el, XName name) =>
 			el.Element(name) ??
 				throw new AgsXmlParsingException(
 					$"Sub-element '<{name}>' not found within <{el.Name}>", 
@@ -67,7 +69,7 @@ namespace AgsEventAdder
 		/// <param name="name">Name of child element</param>
 		/// <returns>The integer in child element</returns>
 		/// <exception cref="AgsXmlParsingException"></exception>
-		internal static int IntElementOrThrow(this XElement el, XName name)
+		public static int IntElementOrThrow(this XElement el, XName name)
 		{
 			var name_el = el.ElementOrThrow(name);
 			if (!int.TryParse(name_el.Value, out var int_value))

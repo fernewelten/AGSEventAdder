@@ -8,7 +8,6 @@ using System.Windows.Documents;
 using System.Xml.Linq;
 using System.Globalization;
 using System.Windows.Controls;
-using System.Management.Instrumentation;
 using System.ComponentModel;
 using System.Text.RegularExpressions;
 
@@ -222,16 +221,16 @@ namespace AgsEventAdder
 					if (!string.IsNullOrEmpty(name_part))
 						ending +=
 							name_part[0].ToString().ToUpper() +
-							name_part.Substring(1);
+							name_part[1..];
 
 				var id = (EventType)cursor_el.IntElementOrThrow("ID");
 				if (string.IsNullOrEmpty(ending))
 					ending = "Mode" + ((int)id).ToString();
 
-				if (name_replacements.ContainsKey(name))
-					name = name_replacements[name];
-				if (ending_replacements.ContainsKey(ending))
-					ending = ending_replacements[ending];
+				if (name_replacements.TryGetValue(name, out string? name_value))
+					name = name_value;
+				if (ending_replacements.TryGetValue(ending, out string? ending_value))
+					ending = ending_value;
 
 				_mouseModes.Add(
 					id, 

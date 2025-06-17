@@ -101,6 +101,14 @@ namespace AgsEventAdder
 			var on_click_el = ng_el.ElementOrThrow("OnClick");
 			var roster_entry = on_click_el.Value;
 
+			/* EventFacts facts = new()
+			{
+				EventType = EventType.OnClick,
+				CurrentInRoster = roster_entry,
+				NewInRoster = roster_entry,
+				IsInCode = _functions.Contains(roster_entry),
+				AddStubToCode = false,
+			};
 			GuiControl gui = new()
 			{
 				Nesting = prefix + lead_in,
@@ -108,13 +116,11 @@ namespace AgsEventAdder
 				GuiControlId = gci,
 				Type = GuiControlType.Gui,
 				EventName = "OnClick", 
-				EventType = EventType.OnClick,
-				CurrentInRoster = roster_entry, 
-				NewInRoster = roster_entry,
-				IsInCode = _functions.Contains(roster_entry),
-				AddStubToCode = false,
+				Facts = facts,
+				
 			};
 			List.Add(gui);
+			*/
 
 			var gc_elements = gui_el.ElementOrThrow("Controls").Elements();
 			int idx = 0, last_idx = gc_elements.Count() - 1;
@@ -135,12 +141,12 @@ namespace AgsEventAdder
 			var gci = gc_el.IntElementOrThrow("ID");
 			var name_el = gc_el.ElementOrThrow("Name");
 
-			GuiControl gc = new()
+			/* GuiControl gc = new()
 			{
 				Nesting = prefix + lead_in,
 				GuiControlName = name_el.Value,
 				GuiControlId = gci,
-				AddStubToCode = false,
+				MustAddStubToCode = false,
 			};
 
 			if (gc.GuiControlName == "GUIButton")
@@ -176,6 +182,7 @@ namespace AgsEventAdder
 			gc.NewInRoster = roster_entry;
 			gc.IsInCode = _functions.Contains(roster_entry);
 			List.Add(gc);
+			*/
 		}
 	}
 }

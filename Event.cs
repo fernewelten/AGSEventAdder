@@ -91,7 +91,6 @@ namespace AgsEventAdder
 
 	public class EventFacts(TableLine parent, HashSet<string> global_funcs) : INotifyPropertyChanged
 	{
-		private EventType _event_type = EventType.None;
 		public EventType EventType
 		{
 			get => _event_type;
@@ -104,8 +103,8 @@ namespace AgsEventAdder
 				OnPropertyChanged(nameof(EventType));
 			}
 		}
+		private EventType _event_type = EventType.None;
 
-		private string _current_in_roster;
 		public string CurrentInRoster
 		{
 			get => _current_in_roster;
@@ -116,11 +115,10 @@ namespace AgsEventAdder
 
 				_current_in_roster = value;
 				OnPropertyChanged(nameof(CurrentInRoster));
-				UpdateDependentFields();
 			}
 		}
+		private string _current_in_roster;
 
-		private string _new_in_roster;
 		public String NewInRoster
 		{
 			get => _new_in_roster;
@@ -134,8 +132,8 @@ namespace AgsEventAdder
 				UpdateDependentFields();
 			}
 		}
+		private string _new_in_roster;
 
-		private string _default_name;
 		public string DefaultName
 		{
 			get => _default_name;
@@ -149,22 +147,8 @@ namespace AgsEventAdder
 				UpdateDependentFields();
 			}
 		}
+		private string _default_name;
 
-		private bool _current_is_in_code;
-		public bool CurrentIsInCode
-		{
-			get => _current_is_in_code;
-			private set
-			{
-				if (_current_is_in_code == value)
-					return;
-
-				_current_is_in_code = value;
-				OnPropertyChanged(nameof(CurrentIsInCode));
-			}
-		}
-
-		private bool _new_is_in_code;
 		public bool NewIsInCode
 		{
 			get => _new_is_in_code;
@@ -177,8 +161,8 @@ namespace AgsEventAdder
 				OnPropertyChanged(nameof(NewIsInCode));
 			}
 		}
+		private bool _new_is_in_code;
 
-		private bool _default_is_in_code;
 		public bool DefaultIsInCode
 		{
 			get => _default_is_in_code;
@@ -191,37 +175,23 @@ namespace AgsEventAdder
 				OnPropertyChanged(nameof(DefaultIsInCode));
 			}
 		}
+		private bool _default_is_in_code;
 
-		private bool _add_stub_to_code;
-		public bool AddStubToCode
+		public bool MustAddStubToCode
 		{
-			get => _add_stub_to_code;
+			get => _must_add_stub_to_code;
 			set
 			{
-				if (_add_stub_to_code == value)
+				if (_must_add_stub_to_code == value)
 					return;
 
-				_add_stub_to_code = value;
-				OnPropertyChanged(nameof(AddStubToCode));
+				_must_add_stub_to_code = value;
+				OnPropertyChanged(nameof(MustAddStubToCode));
 				UpdateDependentFields();
 			}
 		}
+		private bool _must_add_stub_to_code;
 
-		private string _stub_to_add;
-		public string StubToAdd
-		{
-			get => _stub_to_add;
-			set
-			{
-				if (_stub_to_add == value)
-					return;
-
-				_stub_to_add = value;
-				OnPropertyChanged(nameof(StubToAdd));
-			}
-		}
-
-		private bool _has_discrepancy;
 		public bool HasDiscrepancy
 		{
 			get => _has_discrepancy;
@@ -235,8 +205,8 @@ namespace AgsEventAdder
 				parent?.UpdateDiscrepancyCount();
 			}
 		}
+		private bool _has_discrepancy;
 
-		private bool _has_pending_changes;
 		public bool HasPendingChanges
 		{
 			get => _has_pending_changes;
@@ -251,6 +221,7 @@ namespace AgsEventAdder
 				parent?.UpdateChangesPending();
 			}
 		}
+		private bool _has_pending_changes;
 
 		/// <summary>
 		/// Notify whenever a property has changed
@@ -264,23 +235,45 @@ namespace AgsEventAdder
 
 		private void UpdateDependentFields()
 		{
-			CurrentIsInCode = global_funcs.Contains(CurrentInRoster);
 			NewIsInCode = global_funcs.Contains(NewInRoster);
 			DefaultIsInCode = global_funcs.Contains(DefaultName);
 
-			var change_roster =
+			HasPendingChanges = MustAddStubToCode || CurrentInRoster != NewInRoster;
+
+			HasDiscrepancy = !MustAddStubToCode &&
 				!String.IsNullOrWhiteSpace(NewInRoster) &&
-				CurrentInRoster != NewInRoster;
-			HasPendingChanges = AddStubToCode || change_roster;
+				!NewIsInCode;
+		}
 
-			var in_code = change_roster ? NewIsInCode : CurrentIsInCode;
+		public void AddStubToCode()
+		{
+			MustAddStubToCode = true;
+		}
 
-			bool has_discrepancy = !in_code;
-			if (!change_roster &&
-				String.IsNullOrWhiteSpace(CurrentInRoster) &&
-				DefaultIsInCode)
-				has_discrepancy = true;
-			HasDiscrepancy = has_discrepancy;
+		public void DontAddToCode()
+		{
+			MustAddStubToCode = false;
+		}
+
+		public void ChangeToDefault()
+		{
+			NewInRoster = DefaultName;
+		}
+
+		public void ChangeToCurrent()
+		{
+			NewInRoster = CurrentInRoster;
+		}
+
+		public void ClearEvent()
+		{
+			NewInRoster = "";
+		}
+
+		public void CancelPendingChanges()
+		{
+			ChangeToCurrent();
+			DontAddToCode();
 		}
 	}
 }

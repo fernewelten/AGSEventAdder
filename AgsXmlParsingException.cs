@@ -9,7 +9,7 @@ using System.Xml.Linq;
 
 namespace AgsEventAdder
 {
-	internal class AgsXmlParsingException : Exception
+	public class AgsXmlParsingException : Exception
 	{
 
 		public XElement Element { get; private set; }

@@ -1,9 +1,8 @@
-﻿using AgsEventAdder.Properties;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.Remoting.Messaging;
 using System.Text;
+using AgsEventAdder.Properties;
 
 namespace AgsEventAdder
 {

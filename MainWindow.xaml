@@ -16,16 +16,34 @@
         <sys:Double x:Key="VerticalSpacer">10</sys:Double>
         <sys:Double x:Key="HorizontalSpacer">10</sys:Double>
         <sys:Boolean x:Key="GameOpen">False</sys:Boolean>
+        <sys:String x:Key="DiscrepanciesSym">💥</sys:String>
+        <sys:String x:Key="HasChangesPendingSym">✍</sys:String>
         <local:CollapsedWhenNullConverter x:Key="CollapsedWhenNull" />
         <local:CollapsedWhenEmptyConverter x:Key="CollapsedWhenEmpty" />
         <local:CollapsedWhenFalseConverter x:Key="CollapsedWhenFalse" />
+        <local:CollapsedWhenTrueConverter x:Key="CollapsedWhenTrue" />
+        <local:HiddenWhenTrueConverter x:Key="HiddenWhenTrue" />
         <local:CollapsedWhen0Converter x:Key="CollapsedWhen0" />
+        <local:HiddenWhenInCodeMConverter x:Key="HiddenWhenInCode" />
 
         <!-- Make Grid header texts left-aligned -->
         <Style TargetType="{x:Type GridViewColumnHeader}">
             <Setter Property="HorizontalContentAlignment" Value="Left" />
         </Style>
-
+        <!-- Data grids get a handler that lets users unselect a selected line by left-clicking on it.-->
+        <Style TargetType="DataGrid">
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="DataGrid_PreviewMouseLeftButtonDown"/>
+        </Style>
+        <!-- A "Not in code" symbol -->
+        <Grid x:Key="NotInCode" x:Shared="False">
+            <TextBlock Text="🧾"/>
+            <TextBlock Text="❌" Panel.ZIndex="1"/>
+        </Grid>
+        <!-- An "Add stub to code" symbol -->
+        <Grid x:Key="AddToCode" x:Shared="False">
+            <TextBlock Text="🧾"/>
+            <TextBlock Text="➕" Panel.ZIndex="1"/>
+        </Grid>
         <!-- This gory ~140 lines blob of code is needed in order to have TreeViews
              behave as they ought to behave, as far as alignment is concerned.
              NOTE! They claim that this awfulness would "not be too bad" (!!)
@@ -250,17 +268,17 @@
                 </Button.Margin>
                 <TextBlock>
                     <Run Text="💾"/>
-                    <Run Text="Write"/>
+                    <Run Text=" Write "/>
                     <Run Text="{Binding ChangesPending}" Foreground="Red" FontWeight="Bold"/>
-                    <Run Text="changes to file"/>
+                    <Run Text=" change(s) to file"/>
                 </TextBlock>
             </Button>
             <Button x:Name="RejectAll" Click="RejectAll_Click">
                 <TextBlock>
                     <Run Text="🗑️"/>
-                    <Run Text="Discard"/>
+                    <Run Text=" Discard "/>
                     <Run Text="{Binding ChangesPending}" Foreground="Red" FontWeight="Bold"/>
-                    <Run Text="changes"/>  
+                    <Run Text=" change(s)"/>  
                 </TextBlock>
             </Button>
             <Label/>
@@ -279,6 +297,64 @@
         <Grid x:Name="ProcessingGameGrid"
                     Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                     Visibility="{Binding AgsGame, Converter={StaticResource CollapsedWhenNull}}">
+            <Grid.Resources>
+                <ContextMenu x:Key="FactsColumnCtxMenu">
+                    <MenuItem Header="Insert default events and add to code wherever empty"
+                              Click="FactsColumn_AddDefaultEvents_Click"/>
+                    <MenuItem Header="Add stubs to code whenever events are missing there"
+                              Click="FactsColumn_AddMissingEventsToCode_Click"/>
+                    <MenuItem Header="Clear events whenever missing in code"
+                              Click="FactsColumn_ClearEventsWithoutCode_Click"/>
+                    <MenuItem Header="Cancel all pending changes"
+                              Click="FactsColumn_CancelAllPendingChanges_Click"/>
+                </ContextMenu>
+                <ContextMenu x:Key="FactsCellCtxMenu"
+                             Opened="FactsCellCtxMenu_Opened">
+                    <MenuItem x:Name="FactsCellCtxItem_ChangeToDefaultAddStub"
+                              Click="FactsCell_ChangeToDefaultAddStub_Click">
+                        <MenuItem.Resources>
+                            <sys:String x:Key="header">Change to '{0}' and add stub to code</sys:String>
+                        </MenuItem.Resources>
+                    </MenuItem>
+                    <MenuItem x:Name="FactsCellCtxItem_ChangeToDefault"
+                              Click="FactsCell_ChangeToDefaultEvent_Click">
+                        <MenuItem.Resources>
+                            <sys:String x:Key="header">Change to '{0}'</sys:String>
+                        </MenuItem.Resources>
+                    </MenuItem>
+                    <MenuItem x:Name="FactsCellCtxItem_ChangeToCurrent"
+                              Click="FactsCell_ChangeToCurrentEvent_Click">
+                        <MenuItem.Resources>
+                            <sys:String x:Key="header">Change back to '{0}'</sys:String>
+                        </MenuItem.Resources>
+                    </MenuItem>
+                    <MenuItem x:Name="FactsCellCtxItem_AddStub"
+                              Click="FactsCell_AddMissingStubToCode_Click">
+                        <MenuItem.Resources>
+                            <sys:String x:Key="header">Add stub '{0}' to code</sys:String>
+                        </MenuItem.Resources>
+                    </MenuItem>
+                    <MenuItem x:Name="FactsCellCtxItem_NoAddStub"
+                              Click="FactsCell_DontAddStubToCode_Click">
+                        <MenuItem.Resources>
+                            <sys:String x:Key="header">Don't add stub '{0}' to code</sys:String>
+                        </MenuItem.Resources>
+                    </MenuItem>
+                    <MenuItem x:Name="FactsCellCtxItem_ClearEvent"
+                              Click="FactsCell_ClearEvent_Click">
+                        <MenuItem.Resources>
+                            <sys:String x:Key="header">"Clear this event"</sys:String>
+                        </MenuItem.Resources>
+                    </MenuItem>
+                    <MenuItem x:Name="FactsCellCtxItem_CancelPendingChanges"
+                              Click="FactsCell_CancelPendingChanges_Click">
+                        <MenuItem.Resources>
+                            <sys:String x:Key="header">Cancel pending changes</sys:String>
+                        </MenuItem.Resources>
+                    </MenuItem>
+                </ContextMenu>
+                
+            </Grid.Resources>
             <!-- Exactly 1 entry should be visible at all times -->
             <Grid x:Name="OverviewGrid" Grid.Row="0" 
                           Visibility="Visible">
@@ -298,8 +374,6 @@
                 <TreeView x:Name="OverviewTV"
                           Grid.Row="1">
                     <TreeView.Resources>
-                        <sys:String x:Key="Discrepancies">Discrepancies:&#160;</sys:String>
-                        <sys:String x:Key="HasChangesPending">✍</sys:String>
                         <!-- The sequence of declarations is important here, without any good reason.
                              "<DataTemplate …> must come _first_, only then can 
                              "<HierarchicalDataTemplate …>" follow. Otherwise, you'll get a 
@@ -314,26 +388,20 @@
                                         <Run Text=" "/>
                                         <Run Text="{Binding Name, Mode=OneWay}" />
                                     </TextBlock>
-                                    <TextBlock>
+                                    <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen0}}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="Bold"/>
                                                 <Setter Property="Foreground" Value="Red"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding DiscrepancyCount}" Value="0">
-                                                        <Setter Property="FontWeight" Value="Normal"/>
-                                                        <Setter Property="Foreground" Value="Black"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
                                             </Style>
                                         </TextBlock.Style>
                                          <Run Text=" – "/>
-                                         <Run Text="{StaticResource Discrepancies}"/>
+                                         <Run Text="{StaticResource DiscrepanciesSym}"/>
                                          <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
                                     </TextBlock>
                                     <TextBlock Visibility="{Binding ChangesPending, Mode=OneWay, Converter={StaticResource CollapsedWhen0}}">
                                         <Run Text=" – "/>
-                                        <Run Text="{StaticResource HasChangesPending}" />
+                                        <Run Text="{StaticResource HasChangesPendingSym}" />
                                         <Run Text="{Binding ChangesPending, Mode=OneWay}" />
                                     </TextBlock>
                                 </StackPanel>
@@ -345,21 +413,15 @@
                                 HorizontalAlignment="Left"
                                 Orientation="Horizontal">
                                 <TextBlock Text="{Binding Name, Mode=OneWay}" />
-                                <TextBlock>
+                                <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen0}}">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="FontWeight" Value="Bold"/>
                                             <Setter Property="Foreground" Value="Red"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding DiscrepancyCount}" Value="0">
-                                                    <Setter Property="FontWeight" Value="Normal"/>
-                                                    <Setter Property="Foreground" Value="Black"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
                                     <Run Text=" – "/>
-                                    <Run Text="{StaticResource Discrepancies}"/>
+                                    <Run Text="{StaticResource DiscrepanciesSym}"/>
                                     <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
                                 </TextBlock>
                             </StackPanel>
@@ -375,21 +437,15 @@
                                     <Run Text=" "/>
                                     <Run Text="{Binding Name, Mode=OneWay}" />
                                 </TextBlock>
-                                <TextBlock>
+                                <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen0}}">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="FontWeight" Value="Bold"/>
                                             <Setter Property="Foreground" Value="Red"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding DiscrepancyCount}" Value="0">
-                                                    <Setter Property="FontWeight" Value="Normal"/>
-                                                    <Setter Property="Foreground" Value="Black"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
                                     <Run Text=" – "/>
-                                    <Run Text="{StaticResource Discrepancies}"/>
+                                    <Run Text="{StaticResource DiscrepanciesSym}"/>
                                     <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
                                 </TextBlock>
                             </StackPanel>
@@ -409,39 +465,68 @@
                     <!-- Character listview -->
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" 
-                           HorizontalAlignment="Center">
-                    <TextBlock.Margin>
+                <StackPanel Grid.Row="0" 
+                            Orientation="Horizontal">
+                    <StackPanel.Margin>
                         <Thickness Bottom="{StaticResource VerticalSpacer}"/>
-                    </TextBlock.Margin>
-                    <Run Text="Characters"/>
-                </TextBlock>
+                    </StackPanel.Margin>
+                    <TextBlock VerticalAlignment="Center">
+                        <Run Text="Characters"/>
+                    </TextBlock>
+                    <Button x:Name="BackFromCharactersButton"
+                             Content="Back to Overview"
+                             Click="BackFromCharactersButton_Click"/>
+                </StackPanel>
+                
                 <DataGrid x:Name="CharacterDGrid" 
-                          Grid.Row="1">
+                          Grid.Row="1"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserSortColumns="False">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridCell">
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Foreground" Value="Black"/>
+                                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.AccentColorLight3BrushKey}}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.AccentColorDark1BrushKey}}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Resources>
+                    
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Character" Binding="{Binding Name}"/>
-                        <DataGridTextColumn Header="ID" Binding="{Binding Id}"/>
-                        <!-- TODO: This column is to be duplicated in Code Behind and specialised for each event -->
-                        <DataGridTemplateColumn Header="((Talk To))">
+                        <DataGridTemplateColumn Header="Character">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical">
+                                        <TextBlock Text="{Binding Name}"/>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock>NewIsInCode</TextBlock>
-                                            <TextBlock>NewInRoster</TextBlock>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock>CurrentIsInCode</TextBlock>
-                                            <TextBlock>CurrentInRoster</TextBlock>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Content="Add Stub"/>
-                                            <TextBlock>StubToAdd</TextBlock>
+                                            <TextBlock x:Name="RowDiscrepancyCount" 
+                                                Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen0}}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="Foreground" Value="Red"/>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                                <Run Text="{StaticResource DiscrepanciesSym}"/>
+                                                <Run Text="{Binding DiscrepancyCount}"/>
+                                                <Run Text=" "/>
+                                            </TextBlock>
+                                            <TextBlock x:Name="RowChangesPending"
+                                                       Visibility="{Binding ChangesPending, Converter={StaticResource CollapsedWhen0}}">
+                                                <Run Text="{StaticResource HasChangesPendingSym}"/>
+                                                <Run Text="{Binding ChangesPending}"/>
+                                            </TextBlock>
                                         </StackPanel>
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="ID" IsReadOnly="True" Binding="{Binding Id}"/>
+                        <!-- Data colums will be added in Code Behind -->
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

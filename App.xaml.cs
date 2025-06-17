@@ -17,13 +17,11 @@ namespace AgsEventAdder
 	public partial class App : Application, INotifyPropertyChanged
 	{
 
-		private AgsGame _ags_game = null;
-
 		/// <summary>
 		/// Contains the game when open
 		/// </summary>
 		public AgsGame AgsGame
-		{ 
+		{
 			get => _ags_game;
 			set
 			{
@@ -34,8 +32,7 @@ namespace AgsEventAdder
 				OnPropertyChanged(nameof(AgsGame));
 			}
 		}
-
-		private int _changes_pending = 0;
+		private AgsGame _ags_game = null;
 
 		public int ChangesPending
 		{
@@ -48,7 +45,7 @@ namespace AgsEventAdder
 				OnPropertyChanged(nameof(ChangesPending));
 			}
 		}
-
+		private int _changes_pending = 0;
 
 		/// <summary>
 		/// Notify UI elements whenever a property has changed
@@ -56,16 +53,20 @@ namespace AgsEventAdder
 		public event PropertyChangedEventHandler PropertyChanged;
 
 		protected void OnPropertyChanged(string propertyName)
-		{
-			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-		}
+			=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
 		private void Application_Startup(object sender, StartupEventArgs e)
 		{
 			// Thread.CurrentThread.CurrentCulture = new CultureInfo("de-DE");
 
+			ShutdownMode = ShutdownMode.OnMainWindowClose;
+			Exit += App_Exit;
 			MainWindow wnd = new();
 			wnd.Show();
+		}
+		private void App_Exit(object sender, ExitEventArgs e)
+		{
+			AgsGame?.Unlock();
 		}
 	}
 }
