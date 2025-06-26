@@ -23,8 +23,6 @@ namespace AgsEventAdder
 			// up lame excuses.
 			DataContext = Application.Current as App;
 
-			GamePathTxt.Text = GamePathTxt.FindResource("Prompt") as string;
-
 			_game_path_ofd = new OpenFileDialog()
 			{
 				AddExtension = true,
@@ -51,59 +49,60 @@ namespace AgsEventAdder
 
 		private void GamePathTxt_TextChanged(object sender, TextChangedEventArgs e)
 		{
-			// When this element has the focus, assume that the content is still
-			// being edited, so no validation here
-			if (GamePathTxt.IsFocused)
+			if (sender is not TextBox tb || sender is null)
 				return;
 
-			GamePathTxt_HandleChanged(GamePathTxt.Text);
+			// When this element has the focus, assume that the content is still
+			// being edited, so no validation here
+			if (tb.IsFocused)
+				return;
+
+			var new_text = TextBox_LoseKeyboardFocus(tb);
+			GamePathTxt_HandleChanged(new_text);
 		}
 
 		/// <summary>
 		/// Whenever the user has done changing the GamePathTxt field
 		/// </summary>
-		/// <param name="changed_text">Text that has been entered</param>
-		private void GamePathTxt_HandleChanged(string changed_text)
+		/// <param name="changed_path">Text that has been entered</param>
+		private void GamePathTxt_HandleChanged(string changed_path)
 		{
-			GamePathErrorTxt.Text = "";
-			GameDescBlock.Text = "";
 			App app = Application.Current as App;
-			// The prompt text is displayed in lieu of "" 
-			string prompt = GamePathTxt.FindResource("Prompt") as string;
-			if (changed_text == prompt && app?.AgsGame is null)
-				// All ready and done. Still no game selected
+
+			if (String.IsNullOrWhiteSpace(changed_path))
+				changed_path = "";
+			string current_path = app?.AgsGame?.Path ?? "";
+
+			if (changed_path == current_path)
+				return;
+			if (!CloseAnyOpenGame())
 				return;
 
-			if (String.IsNullOrWhiteSpace(changed_text))
+			if (changed_path == "")
 			{
-				changed_text = "";
-				if (GamePathTxt.Text != prompt)
-					GamePathTxt.Text = prompt;
-			}
-
-			bool cancel = GamePathTxt_HandleAnyOpenGame(changed_text);
-			if (cancel)
-			{
-				GamePathTxt.Text = (app.AgsGame is null) ? prompt : app.AgsGame.Path;
+				GamePathErrorTxt.Text = "";
+				GameDescBlock.Text = "";
 				return;
 			}
 
-			AgsGame.Factory(GamePathTxt.Text, out AgsGame game, out string errtext);
+			AgsGame.Factory(changed_path, out AgsGame game, out string errtext);
 			if (game is null)
 			{
 				if (String.IsNullOrEmpty(errtext))
-					errtext = GamePathErrorTxt.FindResource("Default") as string;
+					errtext = (GamePathErrorTxt?.FindResource("Default") as string) ?? "Error";
 				GamePathErrorTxt.Text = errtext;
+				GameDescBlock.Text = "";
 				return;
 			}
 
-			game.Overview.Root.PropertyChanged += notify_app_about_changes_pending;
-
-			GamePathErrorTxt.Text = "";
 			app.AgsGame = game;
+			GamePathErrorTxt.Text = "";
 			GameDescBlock.Text = game.Desc;
+
+			game.Overview.Root.PropertyChanged += notify_app_about_changes_pending;		
 			OverviewTV.ItemsSource = game.Overview.Root.Items;
-			SetDataGridFactColumns(CharacterDGrid, 3, game.EventDescs.CharacterEvents);
+			int char_grid_fixed_columns = (int) CharacterDGrid.FindResource("FixedColumnCount");
+			SetDataGridFactColumns(CharacterDGrid, char_grid_fixed_columns, game.EventDescs.CharacterEvents);
 
 			static void notify_app_about_changes_pending(object? sender, PropertyChangedEventArgs e)
 			{
@@ -119,46 +118,68 @@ namespace AgsEventAdder
 
 
 		/// <summary>
-		/// If a game is open, ask user how to handle that game
+		/// If a game is open, close it unless the user aborts
 		/// </summary>
 		/// <returns>
-		/// Whether this operation should be cancelled 
+		/// false → user aborts
 		/// </returns>
-		private bool GamePathTxt_HandleAnyOpenGame(String changed_path)
+		private bool CloseAnyOpenGame()
 		{
 			App app = Application.Current as App;
-			if (app?.AgsGame is null)
-				// All done because no game is open
-				return String.IsNullOrEmpty(changed_path);
+			if (app?.AgsGame is not null)
+			{
+				if (!ConfirmWhenPending())
+					return false; // User has chickened out
 
-			if ((bool)this.FindResource("ChangesPending"))
-				return MessageBox.Show(
-					"Discard all pending changes?",
-					"Game is already open",
-					MessageBoxButton.OKCancel,
-					MessageBoxImage.Exclamation) == MessageBoxResult.Cancel;
-
-			app.AgsGame.Unlock();
-			app.AgsGame = null;
-			return false;
+				app.AgsGame.Unlock();
+				app.AgsGame = null;
+			}
+			return true;
 		}
 
-		private void GamePathTxt_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+		private void TextBox_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
 		{
-			if (GamePathTxt.Text.Trim() == GamePathTxt.FindResource("Prompt") as String)
-				GamePathTxt.Text = "";
+			if (sender is not TextBox tb || tb is null)
+				return;
+
+			if (tb.Text.Trim() == tb.FindResource("EmptyText") as string)
+				tb.Text = string.Empty;
+		}
+
+		/// <summary>
+		/// Substitute the empty text if the text box is empty.
+		/// </summary>
+		/// <param name="tb"></param>
+		/// <returns>The original content of the textbox</returns>
+		private static string TextBox_LoseKeyboardFocus(TextBox tb)
+		{
+			var new_text = tb.Text.Trim();
+			var empty_text = tb.FindResource("EmptyText") as string ?? string.Empty;
+
+			if (string.IsNullOrWhiteSpace(tb.Text))
+				tb.Text = empty_text;
+			else if (tb.Text == empty_text)
+				new_text = string.Empty;
+			return new_text;
 		}
 
 		private void GamePathTxt_LostFocus(object sender, RoutedEventArgs e)
+		{
+			if (sender is not TextBox tb || tb is null)
+				return;
+
+			var new_text = TextBox_LoseKeyboardFocus(tb);
+			GamePathTxt_HandleChanged(new_text);
+		}
+
+		private void GamePathTxtReturnBtn_Click(object sender, RoutedEventArgs e)
 		{
 			GamePathTxt_HandleChanged(GamePathTxt.Text);
 		}
 
 		private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
 		{
-			if (Application.Current is not App app || app.ChangesPending == 0)
-				return;
-			// TODO Ask to confirm closing
+			e.Cancel = !ConfirmWhenPending();
 		}
 
 		private void OverviewTV_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -716,6 +737,23 @@ namespace AgsEventAdder
 			e.Handled = true; // Prevent default selection behavior
 		}
 
+		/// <summary>
+		/// When changes or saves are pending, confirm that the user wants to continue.
+		/// </summary>
+		/// <returns>true → nothing pending or user wants to continue</returns>
+		private bool ConfirmWhenPending()
+		{
+			if (Application.Current is not App app)
+				return true;
+			if (!app.SaveIsPending && 0 == app.ChangesPending)
+				return true;
 
+			var answer = MessageBox.Show(
+				caption: this.FindResource("ConfirmDiscardChanges_Header").ToString(),
+				messageBoxText: this.FindResource("ConfirmDiscardChanges_Question").ToString(),
+				button: MessageBoxButton.OKCancel,
+				icon: MessageBoxImage.Warning);
+			return answer != MessageBoxResult.Cancel;
+		}
 	}
 }

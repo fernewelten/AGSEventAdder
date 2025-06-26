@@ -217,7 +217,6 @@ namespace AgsEventAdder
 			{
 				error_msg = "Cannot lock game (must not be open, e.g., in AGS Editor)";
 				return;
-
 			}
 			catch (Exception ex)
 			{
@@ -241,16 +240,14 @@ namespace AgsEventAdder
 											 XmlSyntaxException)
 			{
 				error_msg = "Error in game file: " + ex.Message;
+				File.Delete(lock_file_path);
 				return;
 			}
 			catch (Exception ex)
 			{
 				error_msg = "Error reading game file: " + ex.Message;
-				return;
-			}
-			finally
-			{
 				File.Delete(lock_file_path);
+				return;
 			}
 
 			try

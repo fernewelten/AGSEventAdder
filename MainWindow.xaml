@@ -18,6 +18,8 @@
         <sys:Boolean x:Key="GameOpen">False</sys:Boolean>
         <sys:String x:Key="DiscrepanciesSym">💥</sys:String>
         <sys:String x:Key="HasChangesPendingSym">✍</sys:String>
+        <sys:String x:Key="ConfirmDiscardChanges_Header">Pending changes</sys:String>
+        <sys:String x:Key="ConfirmDiscardChanges_Question">All pending changes and/or saves will be discarded. Are you sure?</sys:String>
         <local:CollapsedWhenNullConverter x:Key="CollapsedWhenNull" />
         <local:CollapsedWhenEmptyConverter x:Key="CollapsedWhenEmpty" />
         <local:CollapsedWhenFalseConverter x:Key="CollapsedWhenFalse" />
@@ -216,22 +218,23 @@
                Content="_Game"/>
         <DockPanel Grid.Row="0"  Grid.Column="1">
             <TextBox x:Name="GamePathTxt"
-             Text=""
+             Text="{DynamicResource EmptyText}"
              FontFamily="./Fonts/#DM Mono"
              TextChanged="GamePathTxt_TextChanged"
              LostFocus="GamePathTxt_LostFocus"
-             GotKeyboardFocus="GamePathTxt_GotKeyboardFocus"
+             GotKeyboardFocus="TextBox_GotKeyboardFocus"
              VerticalAlignment="Center"
              MinWidth="300"
              MaxWidth="500">
                 <TextBox.Resources>
-                    <sys:String x:Key="Prompt">(Enter Path to .ags file)</sys:String>
+                    <sys:String x:Key="EmptyText">(Enter Path to .ags file)</sys:String>
                 </TextBox.Resources>
             </TextBox>
             <Button x:Name="GamePathTxtReturnBtn" 
                     Content="⏎" 
                     Visibility="{Binding ElementName=GamePathTxt, Path=IsFocused, Converter={StaticResource CollapsedWhenFalse}}"
-                    Height="{StaticResource LineHeight}"/>
+                    Height="{StaticResource LineHeight}"
+                    Click="GamePathTxtReturnBtn_Click"/>
             <Button x:Name="GamePathBrowseBtn"
                     Content="Browse"
                     Click="GamePathBrowseBtn_Click"
@@ -366,7 +369,7 @@
                             <Run Text=" change(s)"/>    
                         </TextBlock>
                     </Button>
-                    <TextBox/> <!-- Takes up the rest of the line -->
+                    <TextBlock Visibility="Hidden"/> <!-- Takes up the rest of the line -->
                 </DockPanel>
                 <TextBlock x:Name="OverviewHeaderTBlock" Grid.Row="1"  
                            HorizontalAlignment="Center">
@@ -507,6 +510,7 @@
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
+                        <sys:Int32 x:Key="FixedColumnCount">2</sys:Int32>
                     </DataGrid.Resources>
                     
                     <DataGrid.Columns>
