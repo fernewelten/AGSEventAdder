@@ -146,6 +146,41 @@ namespace AgsEventAdder
 		}
 	}
 
+	public class CollapsedWhenBothZeroMConverter: OneWayMultiConverter, IMultiValueConverter
+	{
+		public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+		{
+			if (values.Length >= 2)
+				try
+				{
+					int val1 = to_int(values[0]);
+					int val2 = to_int(values[1]);
+
+					if (val1 == 0 && val2 == 0)
+						return Visibility.Collapsed;
+				}
+				catch { }
+
+			return Visibility.Visible;
+
+			int to_int(object val)
+			{
+				if (val is null)
+					return 0;
+				if (val is bool)
+					return (bool) val ? 1 : 0;
+				try
+				{
+					return (int)val;
+				}
+				catch 
+				{
+					return 1;
+				}
+			}
+		}
+	}
+
 	/// <summary>
 	/// Converter where the way back isn't implemented
 	/// </summary>

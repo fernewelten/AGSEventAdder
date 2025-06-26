@@ -74,11 +74,14 @@ namespace AgsEventAdder
 		/// Cursor Mode, as given in the AGS file
 		/// </summary>
 		public EventType Type { get; set; } = EventType.None;
+
 		public string Name { get; set; }
+		
 		/// <summary>
 		/// Default functions end on this, e.g., "_Look"
 		/// </summary>
 		public String Ending { get; set; } = "";
+		
 		/// <summary>
 		/// Signature of the function that implements the event
 		/// </summary>
@@ -89,7 +92,7 @@ namespace AgsEventAdder
 		public EventDesc Copy() => this.MemberwiseClone() as EventDesc;
 	};
 
-	public class EventFacts(TableLine parent, HashSet<string> global_funcs) : INotifyPropertyChanged
+	public class EventFacts(TableLine parent, HashSet<string> functions) : INotifyPropertyChanged
 	{
 		public EventType EventType
 		{
@@ -115,6 +118,7 @@ namespace AgsEventAdder
 
 				_current_in_roster = value;
 				OnPropertyChanged(nameof(CurrentInRoster));
+				UpdateDependentFields();
 			}
 		}
 		private string _current_in_roster;
@@ -224,6 +228,12 @@ namespace AgsEventAdder
 		private bool _has_pending_changes;
 
 		/// <summary>
+		/// The element of the Tree that is associated with this Facts
+		/// (for writing back the changes)
+		/// </summary>
+		public XElement TreeElement { get; set; }
+
+		/// <summary>
 		/// Notify whenever a property has changed
 		/// </summary>
 		public event PropertyChangedEventHandler PropertyChanged;
@@ -235,8 +245,8 @@ namespace AgsEventAdder
 
 		private void UpdateDependentFields()
 		{
-			NewIsInCode = global_funcs.Contains(NewInRoster);
-			DefaultIsInCode = global_funcs.Contains(DefaultName);
+			NewIsInCode = functions.Contains(NewInRoster);
+			DefaultIsInCode = functions.Contains(DefaultName);
 
 			HasPendingChanges = MustAddStubToCode || CurrentInRoster != NewInRoster;
 
@@ -274,6 +284,35 @@ namespace AgsEventAdder
 		{
 			ChangeToCurrent();
 			DontAddToCode();
+		}
+
+		public void UpdateTreeElementWhenPending()
+		{
+			TreeElement.Value = CurrentInRoster = NewInRoster.Trim();
+		}
+
+		public void UpdateCodeWhenPending(StreamWriter code, EventDesc desc, HashSet<string> functions)
+		{
+			if (!MustAddStubToCode)
+				return; // Nothing to do
+
+			MustAddStubToCode = false;
+			string new_name = NewInRoster?.Trim();
+			if (string.IsNullOrEmpty(new_name))
+				return; // Nothing in roster
+
+			functions.Add(new_name);
+
+			string ret_type = string.IsNullOrWhiteSpace(desc.ReturnType) ? 
+				"void" : desc.ReturnType.Trim();
+			string signature = string.IsNullOrWhiteSpace(desc.Signature) ?
+				"()" : desc.Signature;
+
+			code.WriteLine("");
+			code.WriteLine($"{ret_type} {new_name}{signature}");
+			code.WriteLine("{");
+			code.WriteLine("");
+			code.WriteLine("}");
 		}
 	}
 }

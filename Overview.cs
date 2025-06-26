@@ -43,7 +43,8 @@ namespace AgsEventAdder
 		}
 		private string _name;
 
-		public OverviewFolder Parent { 
+		public OverviewFolder Parent
+		{
 			get => _parent;
 			set
 			{
@@ -179,7 +180,7 @@ namespace AgsEventAdder
 			Root = new("Game");
 			OverviewFolder gi = new("Global Items");
 			Root.AddItem(gi);
-			gi.AddItem(new CharacterTable().Init(game.Tree, game.EventDescs, game.GlobalFunctions));
+			gi.AddItem(new CharacterTable(game.EventDescs, game.GlobalCodeLocation, game.GlobalFunctions).Init(game.Tree));
 			gi.AddItem(new OverviewItem(EventCarrier.InvItems, "Inventory events", icon: "☕"));
 			gi.AddItem(new OverviewItem(EventCarrier.Guis, "GUI and GUIComponent events", icon: "🖥️"));
 			// The stats that have been found during creation of the items haven't been
@@ -249,7 +250,7 @@ namespace AgsEventAdder
 	/// <param name="parent">The object that contains the table</param>
 	public abstract class TableLine(TableOverviewItem parent) : INotifyPropertyChanged
 	{
-		public List<EventFacts> Facts 
+		public List<EventFacts> Facts
 		{
 			get => _facts; 
 			set

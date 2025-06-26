@@ -1,15 +1,8 @@
 ﻿using AgsEventAdder;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Documents;
-using System.Xml.Linq;
 using System.Globalization;
-using System.Windows.Controls;
-using System.ComponentModel;
-using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace AgsEventAdder
 {
@@ -21,6 +14,7 @@ namespace AgsEventAdder
 	{
 		private Dictionary<EventType, EventDesc> _mouseModes;
 		private Dictionary<EventType, EventDesc> _defaultEvents;
+
 		public List<EventDesc> CharacterEvents { get; private set; }
 
 		public List<EventDesc> GuiEvents { get; private set; }

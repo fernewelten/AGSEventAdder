@@ -25,6 +25,7 @@
         <local:HiddenWhenTrueConverter x:Key="HiddenWhenTrue" />
         <local:CollapsedWhen0Converter x:Key="CollapsedWhen0" />
         <local:HiddenWhenInCodeMConverter x:Key="HiddenWhenInCode" />
+        <local:CollapsedWhenBothZeroMConverter x:Key="CollapsedWhenBothZero"/>
 
         <!-- Make Grid header texts left-aligned -->
         <Style TargetType="{x:Type GridViewColumnHeader}">
@@ -194,7 +195,7 @@
 >
     </Window.Resources>
     
-    <Grid>
+    <Grid x:Name="OuterGrid">
         <Grid.Margin>
             <Thickness Left="10" Right="10" Bottom="{StaticResource VerticalSpacer}"/>
         </Grid.Margin>
@@ -203,8 +204,6 @@
             <RowDefinition Height="Auto"/>
             <!-- Errors when opening game -->
             <RowDefinition Height="Auto"/>
-            <!-- Pending changes -->
-            <RowDefinition Height="Auto"/>
             <!-- Work area (Overview + work grid) -->
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
@@ -212,10 +211,9 @@
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <Label x:Name="GamePathLabel" 
+        <Label x:Name="GamePathLabel" Grid.Row="0" Grid.Column="0"
                Target="{Binding ElementName=GamePathTxt}"
-               Content="_Game"
-               Grid.Row="0" Grid.Column="0"/>
+               Content="_Game"/>
         <DockPanel Grid.Row="0"  Grid.Column="1">
             <TextBox x:Name="GamePathTxt"
              Text=""
@@ -231,59 +229,27 @@
                 </TextBox.Resources>
             </TextBox>
             <Button x:Name="GamePathTxtReturnBtn" 
-            Content="⏎" 
-            Visibility="{Binding ElementName=GamePathTxt,Path=IsFocused,Converter={StaticResource CollapsedWhenFalse}}"
-            Height="{StaticResource LineHeight}"/>
+                    Content="⏎" 
+                    Visibility="{Binding ElementName=GamePathTxt, Path=IsFocused, Converter={StaticResource CollapsedWhenFalse}}"
+                    Height="{StaticResource LineHeight}"/>
             <Button x:Name="GamePathBrowseBtn"
-            Content="Browse"
-            Click="GamePathBrowseBtn_Click"
-            Height="{StaticResource LineHeight}"/>
+                    Content="Browse"
+                    Click="GamePathBrowseBtn_Click"
+                    Height="{StaticResource LineHeight}"/>
             <TextBlock x:Name="GameDescBlock"
                 Text=""
                 VerticalAlignment="Center"
                 Margin="10,0,0,0"/>
         </DockPanel>
-        <TextBlock x:Name="GamePathErrorTxt"
-           Grid.Row="1" Grid.Column="1" 
+        <TextBlock x:Name="GamePathErrorTxt" Grid.Row="1" Grid.Column="1" 
            Text=""
-           Visibility="{Binding ElementName=GamePathErrorTxt,Path=Text,Converter={StaticResource CollapsedWhenEmpty}}"
+           Visibility="{Binding ElementName=GamePathErrorTxt, Path=Text, Converter={StaticResource CollapsedWhenEmpty}}"
            TextWrapping="Wrap">
             <TextBlock.Resources>
                 <sys:String x:Key="Default">ERROR: Cannot open or access</sys:String>
             </TextBlock.Resources>
         </TextBlock>
-        <DockPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                   Visibility="{Binding ChangesPending, Converter={StaticResource CollapsedWhen0}}">
-            <DockPanel.Margin>
-                <Thickness Top="{StaticResource VerticalSpacer}" Bottom="{StaticResource VerticalSpacer}"/>
-            </DockPanel.Margin>
-            <DockPanel.Resources>
-                <Style TargetType="Button">
-                    <Setter Property="Padding" Value="5"/>
-                </Style>
-            </DockPanel.Resources>
-            <Button x:Name="CommitAll" Click="CommitAll_Click">
-                <Button.Margin>
-                    <Thickness Right="{StaticResource HorizontalSpacer}"/>
-                </Button.Margin>
-                <TextBlock>
-                    <Run Text="💾"/>
-                    <Run Text=" Write "/>
-                    <Run Text="{Binding ChangesPending}" Foreground="Red" FontWeight="Bold"/>
-                    <Run Text=" change(s) to file"/>
-                </TextBlock>
-            </Button>
-            <Button x:Name="RejectAll" Click="RejectAll_Click">
-                <TextBlock>
-                    <Run Text="🗑️"/>
-                    <Run Text=" Discard "/>
-                    <Run Text="{Binding ChangesPending}" Foreground="Red" FontWeight="Bold"/>
-                    <Run Text=" change(s)"/>  
-                </TextBlock>
-            </Button>
-            <Label/>
-        </DockPanel>
-                    
+
         <!-- 'Source={x:Static Application.Current}' yields errors.
              WPF is struggling to resolve Application.Current as a static property, 
              which makes sense because Application.Current is an instance property, 
@@ -294,8 +260,8 @@
              code behind. Afterwards, automatic field selection doesn't work in the
              Visual editor, which is disconcerting, but '{Binding AgsGame …}' 
              works anyway. -->
-        <Grid x:Name="ProcessingGameGrid"
-                    Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+        <Grid x:Name="WorkAreaGrid"
+                    Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                     Visibility="{Binding AgsGame, Converter={StaticResource CollapsedWhenNull}}">
             <Grid.Resources>
                 <ContextMenu x:Key="FactsColumnCtxMenu">
@@ -353,26 +319,63 @@
                         </MenuItem.Resources>
                     </MenuItem>
                 </ContextMenu>
-                
             </Grid.Resources>
             <!-- Exactly 1 entry should be visible at all times -->
+            <!-- Each entry should have 'Grid.Row="0"' -->
             <Grid x:Name="OverviewGrid" Grid.Row="0" 
                           Visibility="Visible">
+                <Grid.Resources>
+                    <Style TargetType="Button">
+                        <Setter Property="Padding" Value="5"/>
+                    </Style>
+                </Grid.Resources>
                 <Grid.RowDefinitions>
-                    <!-- Header changes -->
+                    <!-- Save buttons -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Header -->
                     <RowDefinition Height="Auto"/>
                     <!-- Treeview -->
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0"  
+                <DockPanel Grid.Row="0">
+                    <DockPanel.Visibility>
+                        <MultiBinding Converter="{StaticResource CollapsedWhenBothZero}">
+                            <Binding Path="ChangesPending" />
+                            <Binding Path="SaveIsPending" />
+                        </MultiBinding>
+                    </DockPanel.Visibility>
+                    <DockPanel.Margin>
+                        <Thickness Top="{StaticResource VerticalSpacer}" Bottom="{StaticResource VerticalSpacer}"/>
+                    </DockPanel.Margin>
+                    <Button x:Name="CommitAll" Click="CommitAll_Click">
+                        <Button.Margin>
+                            <Thickness Right="{StaticResource HorizontalSpacer}"/>
+                        </Button.Margin>
+                        <TextBlock>
+                            <Run Text="💾"/>
+                            <Run Text=" Write "/>
+                            <Run Text="{Binding ChangesPending}" Foreground="Red" FontWeight="Bold"/>
+                            <Run Text=" change(s) to file"/>    
+                        </TextBlock>
+                    </Button>
+                    <Button x:Name="RejectAll" Click="RejectAll_Click">
+                        <TextBlock>
+                            <Run Text="🗑️"/>
+                            <Run Text=" Discard "/>
+                            <Run Text="{Binding ChangesPending}" Foreground="Red" FontWeight="Bold"/>
+                            <Run Text=" change(s)"/>    
+                        </TextBlock>
+                    </Button>
+                    <TextBox/> <!-- Takes up the rest of the line -->
+                </DockPanel>
+                <TextBlock x:Name="OverviewHeaderTBlock" Grid.Row="1"  
                            HorizontalAlignment="Center">
                     <TextBlock.Margin>
                         <Thickness Bottom="{StaticResource VerticalSpacer}"/>
                     </TextBlock.Margin>
                     <Run Text="Overview"/>
                 </TextBlock>
-                <TreeView x:Name="OverviewTV"
-                          Grid.Row="1">
+                <TreeView x:Name="OverviewTV" Grid.Row="2">
                     <TreeView.Resources>
                         <!-- The sequence of declarations is important here, without any good reason.
                              "<DataTemplate …> must come _first_, only then can 
@@ -460,26 +463,36 @@
             <Grid x:Name="CharacterGrid" Grid.Row="0" 
                           Visibility="Collapsed">
                 <Grid.RowDefinitions>
-                    <!-- Header changes -->
+                    <!-- Header, Button "Back" -->
                     <RowDefinition Height="Auto"/>
-                    <!-- Character listview -->
+                    <!-- Character ListView -->
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" 
-                            Orientation="Horizontal">
-                    <StackPanel.Margin>
-                        <Thickness Bottom="{StaticResource VerticalSpacer}"/>
-                    </StackPanel.Margin>
-                    <TextBlock VerticalAlignment="Center">
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" 
+                               Visibility="Hidden"/>
+                    <TextBlock Grid.Column="1"
+                               VerticalAlignment="Center">
+                        <TextBlock.Margin>
+                            <Thickness Right="{StaticResource HorizontalSpacer}"/>
+                        </TextBlock.Margin>
                         <Run Text="Characters"/>
                     </TextBlock>
-                    <Button x:Name="BackFromCharactersButton"
+                    <Button x:Name="BackFromCharactersButton" Grid.Column="2"
                              Content="Back to Overview"
-                             Click="BackFromCharactersButton_Click"/>
-                </StackPanel>
+                             Click="BackFromCharactersButton_Click"
+                             VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="3"
+                             Visibility="Hidden"/>
+                </Grid>
                 
-                <DataGrid x:Name="CharacterDGrid" 
-                          Grid.Row="1"
+                <DataGrid x:Name="CharacterDGrid" Grid.Row="1"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
                           CanUserDeleteRows="False"

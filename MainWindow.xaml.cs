@@ -1,17 +1,11 @@
 ﻿using Microsoft.Win32;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.ComponentModel;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using static AgsEventAdder.XamlExtensions;
 
 namespace AgsEventAdder
@@ -29,7 +23,7 @@ namespace AgsEventAdder
 			// up lame excuses.
 			DataContext = Application.Current as App;
 
-			GamePathTxt.Text = GamePathTxt.FindResource("Prompt") as String;
+			GamePathTxt.Text = GamePathTxt.FindResource("Prompt") as string;
 
 			_game_path_ofd = new OpenFileDialog()
 			{
@@ -69,7 +63,7 @@ namespace AgsEventAdder
 		/// Whenever the user has done changing the GamePathTxt field
 		/// </summary>
 		/// <param name="changed_text">Text that has been entered</param>
-		private void GamePathTxt_HandleChanged(String changed_text)
+		private void GamePathTxt_HandleChanged(string changed_text)
 		{
 			GamePathErrorTxt.Text = "";
 			GameDescBlock.Text = "";
@@ -429,7 +423,10 @@ namespace AgsEventAdder
 
 		private void CommitAll_Click(object sender, RoutedEventArgs e)
 		{
-			throw new NotImplementedException();
+			if (Application.Current is not App app || app.AgsGame is null)
+				return;
+
+			app.AgsGame.UpdatePendingAndSave();
 		}
 
 		private void RejectAll_Click(object sender, RoutedEventArgs e)

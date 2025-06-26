@@ -1,13 +1,9 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows;
-
-using System.Threading;
 using System.ComponentModel;
+using System.Configuration;
+using System.Windows;
 
 namespace AgsEventAdder
 {
@@ -46,6 +42,19 @@ namespace AgsEventAdder
 			}
 		}
 		private int _changes_pending = 0;
+
+		public bool SaveIsPending
+		{
+			get => _save_is_pending;
+			set
+			{
+				if (_save_is_pending == value)
+					return;
+				_save_is_pending = value;
+				OnPropertyChanged(nameof(SaveIsPending));
+			}
+		}
+		private bool _save_is_pending = false;
 
 		/// <summary>
 		/// Notify UI elements whenever a property has changed

@@ -53,27 +53,40 @@ namespace AgsEventAdder
 	/// <summary>
 	/// Overview items that contain a table of a list of events per entity
 	/// </summary>
-	public abstract class TableOverviewItem(EventCarrier carrier, string name, string icon) 
+	public abstract class TableOverviewItem(EventCarrier carrier, string name, string icon)
 		: OverviewItem(carrier, name, icon)
 	{
 		public abstract void UpdateDiscrepancyCount();
 
 		public abstract void UpdateChangesPending();
 
-		public abstract IList GetLines();
+		public abstract IList Lines { get; }
 
+		protected List<EventDesc> EventDescs { get; set; }
+
+		// This field won't be displayed anywhere, no need to notify changes
+		/// <summary>
+		/// The code file associated with the table. Stubs will be written here
+		/// </summary>
+		protected string CodeFilePath { get; set; }
+
+		// This field won't be displayed anywhere, no need to notify changes
+		/// <summary>
+		/// The names of the functions in the code file.
+		/// </summary>
+		protected HashSet<string> Functions { get; set; }
 
 		public void InsertDefaultWhereverEmpty(IList list, int fact_col, bool add_to_code = false)
 		{
 			if (list is null ||  list.Count == 0)
-				list = GetLines();
+				list = Lines;
 			foreach (var item in list)
 			{
 				if (item is null or not TableLine)
 					continue;
 
 				var facts = (item as TableLine).Facts[fact_col];
-				if (!string.IsNullOrWhiteSpace(facts?.NewInRoster))
+				if (facts is null || !string.IsNullOrWhiteSpace(facts.NewInRoster))
 					continue;
 
 				facts.ChangeToDefault();
@@ -85,7 +98,7 @@ namespace AgsEventAdder
 		public void AddEventsToCodeWheneverMissing(IList list, int fact_col)
 		{
 			if (list is null || list.Count == 0)
-				list = GetLines();
+				list = Lines;
 			foreach (var item in list)
 			{
 				if (item is null or not TableLine)
@@ -99,11 +112,11 @@ namespace AgsEventAdder
 			}
 		}
 
-		
+
 		public void ClearEventsWithoutCode(IList list, int fact_col)
 		{
 			if (list is null || list.Count == 0)
-				list = GetLines();
+				list = Lines;
 			foreach (var item in list)
 			{
 				if (item is null or not TableLine)
@@ -122,51 +135,78 @@ namespace AgsEventAdder
 		public void CancelAllPendingChanges(IList list, int fact_col)
 		{
 			if (list is null || list.Count == 0)
-				list = GetLines();
-			foreach (var item in list)
+				list = Lines;
+			foreach (var line in list)
 			{
-				if (item is null or not TableLine)
+				if (line is null || line is not TableLine tline)
 					continue;
 
-				var facts = (item as TableLine).Facts[fact_col];
-				if (facts is null)
-					continue;
-
-				facts.CancelPendingChanges();
+				var facts = tline.Facts[fact_col];
+				facts?.CancelPendingChanges();
 			}
-		}		
+		}
+
+		public void UpdateToTreeWhenPending()
+		{
+			if (ChangesPending == 0)
+				return; // nothing to do
+
+			foreach (var line in Lines)
+			{
+				if (line is null || line is not TableLine tline)
+					continue;
+
+				foreach (var facts in tline.Facts)
+					facts?.UpdateTreeElementWhenPending();
+			}
+		}
+
+		public void UpdateCodeWhenPending()
+		{
+			if (ChangesPending == 0)
+				return; // nothing to do
+
+			using StreamWriter code_writer = new(path: CodeFilePath, append: true);
+
+			foreach (var line in Lines)
+			{
+				if (line is null || line is not TableLine tline)
+					continue;
+
+				for (int idx = 0; idx < tline.Facts.Count; idx++)
+				{
+					EventDesc desc = EventDescs[idx];
+					EventFacts facts = tline.Facts[idx];
+					facts?.UpdateCodeWhenPending(code_writer, desc, Functions);
+				}
+			}
+		}
 	}
 
 	public class CharacterTable : TableOverviewItem
 	{
-		public ObservableCollection<CharacterTableLine> Lines { get; set; }
+		public override IList Lines => _lines;
+		public ObservableCollection<CharacterTableLine> ChLines => _lines;
+		private ObservableCollection<CharacterTableLine> _lines = [];
 
-		public CharacterTable()
+		public CharacterTable(EventDescs descs, string code_file, HashSet<string> functions)
 			: base(carrier: EventCarrier.Characters, name: "Character events", icon: "🧑")
 		{
-			Lines = [];
+			EventDescs = descs.CharacterEvents;
+			CodeFilePath = code_file;
+			Functions = functions;
 		}
 
-		public override void UpdateDiscrepancyCount() => 
-			DiscrepancyCount = Lines.Sum(line => line.DiscrepancyCount);
-
-		public override void UpdateChangesPending() => 
-			ChangesPending = Lines.Sum(line => line.ChangesPending);
-
-		public override IList GetLines() => Lines;
-
-
-		public CharacterTable Init(XDocument tree, EventDescs descs, HashSet<string> global_funcs)
+		public CharacterTable Init(XDocument tree)
 		{
 			var xfolder = tree.Root.ElementOrThrow("Game")
 				.ElementOrThrow("Characters")
 				.ElementOrThrow("CharacterFolder")
 				.CheckAttributeOrThrow("Name", "Main");
-			ProcessCharacterFolder(xfolder, descs.CharacterEvents, global_funcs);
+			ProcessCharacterFolder(xfolder);
 			return this;
 
-			void ProcessCharacterFolder(
-				XElement xfolder, List<EventDesc> descs, HashSet<string> global_funcs)
+			void ProcessCharacterFolder(XElement xfolder)
 			{
 				var xsubfolders = xfolder.ElementOrThrow("SubFolders");
 				foreach (XElement xsubfolder in xsubfolders.Elements())
@@ -175,7 +215,7 @@ namespace AgsEventAdder
 						throw new AgsXmlParsingException(
 							$"'Found unexpected sub-element <{xsubfolder.Name}>' within <Subfolders>",
 							xsubfolder);
-					ProcessCharacterFolder(xsubfolder, descs, global_funcs);
+					ProcessCharacterFolder(xsubfolder);
 				}
 
 				var xcharacters = xfolder.ElementOrThrow("Characters");
@@ -200,14 +240,22 @@ namespace AgsEventAdder
 
 						while (ctl.Facts.Count <= index)
 						{
-							var ev = new EventFacts(parent: ctl, global_funcs: global_funcs);
+							var ev = new EventFacts(parent: ctl, functions: Functions);
 							ctl.Facts.Add(ev);
 						}
 						ctl.Facts[index].NewInRoster = ctl.Facts[index].CurrentInRoster = xevent.Value;
-						ctl.Facts[index].DefaultName = (name == "") ? "" : $"{name}_{descs[index].Ending}";
+						ctl.Facts[index].DefaultName = (name == "") ? "" : $"{name}_{EventDescs[index].Ending}";
+						ctl.Facts[index].TreeElement = xevent;
 					}
 				}
 			}
 		}
+
+		public override void UpdateDiscrepancyCount() =>
+			DiscrepancyCount = ChLines.Sum(line => line.DiscrepancyCount);
+
+		public override void UpdateChangesPending() =>
+			ChangesPending = ChLines.Sum(line => line.ChangesPending);
+
 	}
 }
