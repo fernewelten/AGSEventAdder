@@ -263,6 +263,7 @@ namespace AgsEventAdder
 			}
 			catch (Exception ex)
 			{
+				game = null;
 				error_msg = "Error when initialising game: " + ex.Message;
 				File.Delete(lock_file_path);
 				return;
@@ -352,6 +353,31 @@ namespace AgsEventAdder
 					return;
 				}
 				SaveIsPending = false;
+			}
+		}
+
+		public void DiscardPendingChanges()
+		{
+			discard_pending_in_folder(Overview.Root);
+
+			void discard_pending_in_folder(OverviewFolder folder)
+			{
+				foreach (var item in folder.Items)
+				{
+					if (item is null)
+						continue;
+
+					if (item is OverviewFolder f)
+					{
+						discard_pending_in_folder(f);
+						continue;
+					}
+
+					if (item is not TableOverviewItem toi)
+						continue;
+
+					toi.DiscardPendingChanges();
+				}
 			}
 		}
 

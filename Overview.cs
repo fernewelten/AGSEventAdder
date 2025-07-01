@@ -181,7 +181,7 @@ namespace AgsEventAdder
 			OverviewFolder gi = new("Global Items");
 			Root.AddItem(gi);
 			gi.AddItem(new CharacterTable(game.EventDescs, game.GlobalCodeLocation, game.GlobalFunctions).Init(game.Tree));
-			gi.AddItem(new OverviewItem(EventCarrier.InvItems, "Inventory events", icon: "☕"));
+			gi.AddItem(new InvItemTable(game.EventDescs, game.GlobalCodeLocation, game.GlobalFunctions).Init(game.Tree));
 			gi.AddItem(new OverviewItem(EventCarrier.Guis, "GUI and GUIComponent events", icon: "🖥️"));
 			// The stats that have been found during creation of the items haven't been
 			// propagated to 'gi' yet because their 'Parent' is only set after creation.

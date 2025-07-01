@@ -130,8 +130,8 @@ namespace AgsEventAdder
 				_defaultEvents[EventType.OtherClickOn].Copy(),
 				];
 			foreach (var ev in InvItemEvents)
-				{
-					ev.Signature = "(InventoryItem *theItem, CursorMode mode)";
+			{
+				ev.Signature = "(InvItem *theItem, CursorMode mode)";
 				ev.ReturnType = "void";
 			}
 

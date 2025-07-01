@@ -272,8 +272,10 @@
                               Click="FactsColumn_AddMissingEventsToCode_Click"/>
                     <MenuItem Header="Clear events whenever missing in code"
                               Click="FactsColumn_ClearEventsWithoutCode_Click"/>
-                    <MenuItem Header="Cancel all pending changes"
-                              Click="FactsColumn_CancelAllPendingChanges_Click"/>
+                    <MenuItem Header="Clear all events"
+                              Click="FactsColumn_ClearAllEvents_Click"/>
+                    <MenuItem Header="Discard all pending changes"
+                              Click="FactsColumn_DiscardAllPendingChanges_Click"/>
                 </ContextMenu>
                 <ContextMenu x:Key="FactsCellCtxMenu"
                              Opened="FactsCellCtxMenu_Opened">
@@ -310,7 +312,7 @@
                     <MenuItem x:Name="FactsCellCtxItem_ClearEvent"
                               Click="FactsCell_ClearEvent_Click">
                         <MenuItem.Resources>
-                            <sys:String x:Key="header">"Clear this event"</sys:String>
+                            <sys:String x:Key="header">Clear this event</sys:String>
                         </MenuItem.Resources>
                     </MenuItem>
                     <MenuItem x:Name="FactsCellCtxItem_CancelPendingChanges"
@@ -320,6 +322,15 @@
                         </MenuItem.Resources>
                     </MenuItem>
                 </ContextMenu>
+                <Style TargetType="DataGridCell">
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Foreground" Value="Black"/>
+                            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.AccentColorLight3BrushKey}}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.AccentColorDark1BrushKey}}"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
             </Grid.Resources>
             <!-- Exactly 1 entry should be visible at all times -->
             <!-- Each entry should have 'Grid.Row="0"' -->
@@ -359,7 +370,7 @@
                             <Run Text=" change(s) to file"/>    
                         </TextBlock>
                     </Button>
-                    <Button x:Name="RejectAll" Click="RejectAll_Click">
+                    <Button x:Name="DiscardAll" Click="DiscardAll_Click">
                         <TextBlock>
                             <Run Text="🗑️"/>
                             <Run Text=" Discard "/>
@@ -487,7 +498,7 @@
                     </TextBlock>
                     <Button x:Name="BackFromCharactersButton" Grid.Column="2"
                              Content="Back to Overview"
-                             Click="BackFromCharactersButton_Click"
+                             Click="BackToOverview_Click"
                              VerticalAlignment="Center"/>
                     <TextBox Grid.Column="3"
                              Visibility="Hidden"/>
@@ -499,20 +510,110 @@
                           CanUserDeleteRows="False"
                           CanUserSortColumns="False">
                     <DataGrid.Resources>
-                        <Style TargetType="DataGridCell">
-                            <Style.Triggers>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Foreground" Value="Black"/>
-                                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.AccentColorLight3BrushKey}}"/>
-                                    <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.AccentColorDark1BrushKey}}"/>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
                         <sys:Int32 x:Key="FixedColumnCount">2</sys:Int32>
                     </DataGrid.Resources>
                     
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="Character">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Width="{Binding Indent, Converter={StaticResource Stretch}, ConverterParameter={StaticResource HorizontalSpacer}}"/>
+                                            <TextBlock Text="📁" Visibility="{Binding IsFolder, Converter={StaticResource CollapsedWhen}, ConverterParameter=False}"/>
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Width="{Binding Indent, Converter={StaticResource Stretch}, ConverterParameter={StaticResource HorizontalSpacer}}"/>
+                                            <TextBlock x:Name="RowDiscrepancyCount" 
+                                                Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen}, ConverterParameter=0}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="Foreground" Value="Red"/>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                                <Run Text="{StaticResource DiscrepanciesSym}"/>
+                                                <Run Text="{Binding DiscrepancyCount}"/>
+                                                <Run Text=" "/>
+                                            </TextBlock>
+                                            <TextBlock x:Name="RowChangesPending"
+                                                       Visibility="{Binding ChangesPending, Converter={StaticResource CollapsedWhen}, ConverterParameter=0}">
+                                                <Run Text="{StaticResource HasChangesPendingSym}"/>
+                                                <Run Text="{Binding ChangesPending}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="ID" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding Id}"
+                                             IsReadOnly="True"
+                                             Visibility="{Binding IsFolder, Converter={StaticResource CollapsedWhen}, ConverterParameter=True}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFolder}" Value="True">
+                                            <Setter Property="Background" Value="LightGray"/>
+                                            <Setter Property="BorderBrush" Value="LightGray"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTemplateColumn.CellStyle>
+                        </DataGridTemplateColumn>
+                        <!-- Data colums will be added in Code Behind -->
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+            
+            <Grid x:Name="InvItemGrid" Grid.Row="0" 
+                          Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <!-- Header, Button "Back" -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Inventory item ListView -->
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" 
+                               Visibility="Hidden"/>
+                    <TextBlock Grid.Column="1"
+                               VerticalAlignment="Center">
+                        <TextBlock.Margin>
+                            <Thickness Right="{StaticResource HorizontalSpacer}"/>
+                        </TextBlock.Margin>
+                        <Run Text="Inventory Items"/>
+                    </TextBlock>
+                    <Button x:Name="BackFromInvItemsButton" Grid.Column="2"
+                             Content="Back to Overview"
+                             Click="BackToOverview_Click"
+                             VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="3"
+                             Visibility="Hidden"/>
+                </Grid>
+                
+                <DataGrid x:Name="InvItemDGrid" Grid.Row="1"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserSortColumns="False">
+                    <DataGrid.Resources>
+                        <sys:Int32 x:Key="FixedColumnCount">2</sys:Int32>
+                    </DataGrid.Resources>
+                    
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Inventory item">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical">

@@ -44,7 +44,10 @@ namespace AgsEventAdder
 		private void GamePathBrowseBtn_Click(object sender, RoutedEventArgs e)
 		{
 			if (_game_path_ofd.ShowDialog() ?? false)
+			{
+				GamePathTxt.Text = string.Empty;
 				GamePathTxt.Text = _game_path_ofd.FileName;
+			}
 		}
 
 		private void GamePathTxt_TextChanged(object sender, TextChangedEventArgs e)
@@ -99,10 +102,12 @@ namespace AgsEventAdder
 			GamePathErrorTxt.Text = "";
 			GameDescBlock.Text = game.Desc;
 
-			game.Overview.Root.PropertyChanged += notify_app_about_changes_pending;		
+			game.Overview.Root.PropertyChanged += notify_app_about_changes_pending;
 			OverviewTV.ItemsSource = game.Overview.Root.Items;
 			int char_grid_fixed_columns = (int) CharacterDGrid.FindResource("FixedColumnCount");
 			SetDataGridFactColumns(CharacterDGrid, char_grid_fixed_columns, game.EventDescs.CharacterEvents);
+			int iitem_grid_fixed_columns = (int)InvItemDGrid.FindResource("FixedColumnCount");
+			SetDataGridFactColumns(InvItemDGrid, iitem_grid_fixed_columns, game.EventDescs.InvItemEvents);
 
 			static void notify_app_about_changes_pending(object? sender, PropertyChangedEventArgs e)
 			{
@@ -204,7 +209,7 @@ namespace AgsEventAdder
 						return;
 					}
 				case EventCarrier.InvItems:
-					OverviewTV_InvItems_MouseDoubleClick();
+					OverviewTV_InvItems_MouseDoubleClick(selected as InvItemTable);
 					return;
 				case EventCarrier.Objects:
 					{
@@ -244,6 +249,57 @@ namespace AgsEventAdder
 			// Stash the informaion about what table is shown in 'Tag' so that we
 			// can get at the underlying table when we've got the data grid
 			CharacterDGrid.Tag = selected;
+		}
+
+		private void OverviewTV_Guis_MouseDoubleClick()
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_Hotspots_MouseDoubleClick(in int room)
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_InvItems_MouseDoubleClick(InvItemTable selected)
+		{
+			InvItemGrid.Visibility = Visibility.Visible;
+			OverviewGrid.Visibility = Visibility.Collapsed;
+			InvItemDGrid.ItemsSource = selected.Lines;
+			// Stash the informaion about what table is shown in 'Tag' so that we
+			// can get at the underlying table when we've got the data grid
+			InvItemDGrid.Tag = selected;
+		}
+
+		private void OverviewTV_Objects_MouseDoubleClick(in int room)
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_Regions_MouseDoubleClick(in int room)
+		{
+			throw new NotImplementedException();
+		}
+
+		private void OverviewTV_Rooms_MouseDoubleClick(in int room)
+		{
+			throw new NotImplementedException();
+		}
+
+		private void CommitAll_Click(object sender, RoutedEventArgs e)
+		{
+			if (Application.Current is not App app || app.AgsGame is null)
+				return;
+
+			app.AgsGame.UpdatePendingAndSave();
+		}
+
+		private void DiscardAll_Click(object sender, RoutedEventArgs e)
+		{
+			if (Application.Current is not App app || app.AgsGame is null)
+				return;
+
+			app.AgsGame.DiscardPendingChanges();
 		}
 
 		/// <summary>
@@ -439,52 +495,10 @@ namespace AgsEventAdder
 			}
 		}
 
-		private void OverviewTV_Guis_MouseDoubleClick()
-		{
-			throw new NotImplementedException();
-		}
-
-		private void OverviewTV_Hotspots_MouseDoubleClick(in int room)
-		{
-			throw new NotImplementedException();
-		}
-
-		private void OverviewTV_InvItems_MouseDoubleClick()
-		{
-			throw new NotImplementedException();
-		}
-
-		private void OverviewTV_Objects_MouseDoubleClick(in int room)
-		{
-			throw new NotImplementedException();
-		}
-
-		private void OverviewTV_Regions_MouseDoubleClick(in int room)
-		{
-			throw new NotImplementedException();
-		}
-
-		private void OverviewTV_Rooms_MouseDoubleClick(in int room)
-		{
-			throw new NotImplementedException();
-		}
-
-		private void CommitAll_Click(object sender, RoutedEventArgs e)
-		{
-			if (Application.Current is not App app || app.AgsGame is null)
-				return;
-
-			app.AgsGame.UpdatePendingAndSave();
-		}
-
-		private void RejectAll_Click(object sender, RoutedEventArgs e)
-		{
-			throw new NotImplementedException();
-		}
-
-		private void BackFromCharactersButton_Click(object sender, RoutedEventArgs e)
+		private void BackToOverview_Click(object sender, RoutedEventArgs e)
 		{
 			CharacterGrid.Visibility = Visibility.Collapsed;
+			InvItemGrid.Visibility = Visibility.Collapsed;
 			OverviewGrid.Visibility = Visibility.Visible;
 		}
 
@@ -512,10 +526,19 @@ namespace AgsEventAdder
 			if (failed)
 				return;
 
-			toi.ClearEventsWithoutCode(data_grid.SelectedItems, facts_index);
+			toi.ClearEvents(data_grid.SelectedItems, facts_index, true);
 		}
 
-		private void FactsColumn_CancelAllPendingChanges_Click(object sender, RoutedEventArgs e)
+		private void FactsColumn_ClearAllEvents_Click(object sender, RoutedEventArgs e)
+		{
+			bool failed = GetColumnIdentification(sender, out DataGrid data_grid, out TableOverviewItem toi, out int facts_index);
+			if (failed)
+				return;
+
+			toi.ClearEvents(data_grid.SelectedItems, facts_index, false);
+		}
+
+		private void FactsColumn_DiscardAllPendingChanges_Click(object sender, RoutedEventArgs e)
 		{
 			bool failed = GetColumnIdentification(sender, out DataGrid data_grid, out TableOverviewItem toi, out int facts_index);
 			if (failed)
@@ -623,13 +646,14 @@ namespace AgsEventAdder
 			if (facts is null)
 				return;
 
-			facts.CancelPendingChanges();
+			facts.DiscardPendingChanges();
 		}
 
 		private static EventFacts? GetEventFactsFromMenuItem(MenuItem menu_item)
 		{
 			if (menu_item.Parent is not ContextMenu context_menu)
 				return null;
+
 			return GetEventFactsFromContextMenu(context_menu);
 		}
 

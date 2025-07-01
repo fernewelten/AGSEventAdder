@@ -48,6 +48,42 @@ namespace AgsEventAdder
 	}
 
 	/// <summary>
+	/// Event facts for Inventory Items
+	/// </summary>
+	/// <param name="parent">The object that contains the table for this line</param>
+	public class InvItemTableLine(TableOverviewItem parent) : TableLine(parent)
+	{
+		public string Name
+		{
+			get => _name;
+			set
+			{
+				if (_name == value)
+					return;
+
+				_name = value;
+				OnPropertyChanged(nameof(Name));
+			}
+		}
+		private string _name = string.Empty;
+
+		public int Id
+		{
+			get => _id;
+
+			set
+			{ 
+				if (value == _id) 
+					return;
+
+				_id = value;
+				OnPropertyChanged(nameof(Id));
+			}
+		}
+		private int _id;
+	}
+
+	/// <summary>
 	/// Overview items that contain a table of a list of events per entity
 	/// </summary>
 	public abstract class TableOverviewItem(EventCarrier carrier, string name, string icon)
@@ -114,7 +150,7 @@ namespace AgsEventAdder
 		}
 
 
-		public void ClearEventsWithoutCode(IList list, int fact_col)
+		public void ClearEvents(IList list, int fact_col, bool only_those_not_in_code)
 		{
 			if (list is null || list.Count == 0)
 				list = Lines;
@@ -129,7 +165,7 @@ namespace AgsEventAdder
 				if (string.IsNullOrWhiteSpace(facts?.NewInRoster))
 					continue;
 
-				if (!facts.NewIsInCode)
+				if (!only_those_not_in_code || !facts.NewIsInCode)
 					facts.NewInRoster = "";
 			}
 		}
@@ -147,10 +183,26 @@ namespace AgsEventAdder
 					continue;
 
 				var facts = tline.Facts[fact_col];
-				facts?.CancelPendingChanges();
+				facts?.DiscardPendingChanges();
 			}
 		}
 
+		public void DiscardPendingChanges()
+		{
+			if (ChangesPending == 0)
+				return; // nothing to do
+
+			foreach (var line in Lines)
+			{
+				if (line is null || line is not TableLine tline)
+					continue;
+				if (tline.IsFolder)
+					continue;
+
+				foreach (var facts in tline.Facts)
+					facts?.DiscardPendingChanges();
+			}
+		}
 		public void UpdateToTreeWhenPending()
 		{
 			if (ChangesPending == 0)
@@ -313,7 +365,7 @@ namespace AgsEventAdder
 		private ObservableCollection<CharacterTableLine> _lines = [];
 
 		public CharacterTable(EventDescs descs, string code_file, HashSet<string> functions)
-			: base(carrier: EventCarrier.Characters, name: "Character events", icon: "🧑")
+			: base(carrier: EventCarrier.Characters, name: "Character events", icon: "🧑‍🤝‍🧑")
 		{
 			EventDescs = descs.CharacterEvents;
 			CodeFilePath = code_file;
@@ -326,10 +378,10 @@ namespace AgsEventAdder
 				.ElementOrThrow("Characters")
 				.ElementOrThrow("CharacterFolder")
 				.CheckAttributeOrThrow("Name", "Main");
-			ProcessCharacterFolder(xfolder, 0);
+			ProcessInvItemFolder(xfolder: xfolder, indent: 0);
 			return this;
 
-			void ProcessCharacterFolder(XElement xfolder, int indent)
+			void ProcessInvItemFolder(XElement xfolder, int indent)
 			{
 				var xsubfolders = xfolder.ElementOrThrow("SubFolders");
 				int subfolder_indent = indent + 1;
@@ -348,7 +400,7 @@ namespace AgsEventAdder
 						Name = xsubfolder.Attribute("Name").Value,
 					};
 					Lines.Add(ctl);
-					ProcessCharacterFolder(xsubfolder, subfolder_indent);
+					ProcessInvItemFolder(xsubfolder, subfolder_indent);
 				}
 
 				var xcharacters = xfolder.ElementOrThrow("Characters");
@@ -395,6 +447,99 @@ namespace AgsEventAdder
 
 		public override void UpdateChangesPending() =>
 			ChangesPending = ChLines.Sum(line => line.ChangesPending);
-
 	}
+
+
+	public class InvItemTable : TableOverviewItem
+	{
+		public override IList Lines => _lines;
+		public ObservableCollection<InvItemTableLine> IiLines => _lines;
+		private ObservableCollection<InvItemTableLine> _lines = [];
+
+		public InvItemTable(EventDescs descs, string code_file, HashSet<string> functions)
+			: base(carrier: EventCarrier.InvItems, name: "InvItem events", icon: "🗝️")
+		{
+			EventDescs = descs.InvItemEvents;
+			CodeFilePath = code_file;
+			Functions = functions;
+		}
+
+		public InvItemTable Init(XDocument tree)
+		{
+			var xfolder = tree.Root.ElementOrThrow("Game")
+				.ElementOrThrow("InventoryItems")
+				.ElementOrThrow("InventoryItemFolder")
+				.CheckAttributeOrThrow("Name", "Main");
+			ProcessFolder(xfolder, 0);
+			return this;
+
+			void ProcessFolder(XElement xfolder, int indent)
+			{
+				var xsubfolders = xfolder.ElementOrThrow("SubFolders");
+				int subfolder_indent = indent + 1;
+				foreach (XElement xsubfolder in xsubfolders.Elements())
+				{
+					if (xsubfolder.Name != "InventoryItemFolder")
+						throw new AgsXmlParsingException(
+							$"'Found unexpected sub-element <{xsubfolder.Name}>' within <Subfolders>",
+							xsubfolder);
+
+					InvItemTableLine ctl = new(this)
+					{
+						Facts = [],
+						Id = -77,
+						Indent = indent,
+						IsFolder = true,
+						Name = xsubfolder.Attribute("Name").Value,
+					};
+					Lines.Add(ctl);
+					ProcessFolder(xsubfolder, subfolder_indent);
+				}
+
+				var xitems = xfolder.ElementOrThrow("InventoryItems");
+				foreach (XElement xitem in xitems.Elements())
+				{
+					if (xitem.Name != "InventoryItem")
+						throw new AgsXmlParsingException(
+							$"'Found unexpected sub-element <{xitem.Name}>' within <InventoryItems>",
+							xitem);
+					int id = xitem.IntElementOrThrow("ID");
+					XElement item_name_el = xitem.ElementOrThrow("Name");
+					string name = item_name_el.Value;
+					if (string.IsNullOrWhiteSpace(name))
+						name = "";
+
+					InvItemTableLine ctl = new(this)
+					{
+						Name = name,
+						Id = id,
+						Facts = [],
+						Indent = indent,
+					};
+					Lines.Add(ctl);
+					var xinteractions = xitem.ElementOrThrow("Interactions");
+					foreach (XElement xevent in xinteractions.Elements())
+					{
+						var index = xevent.IntAttributeValueOrThrow("Index");
+
+						while (ctl.Facts.Count <= index)
+						{
+							var ev = new EventFacts(parent: ctl, functions: Functions);
+							ctl.Facts.Add(ev);
+						}
+						ctl.Facts[index].NewInRoster = ctl.Facts[index].CurrentInRoster = xevent.Value;
+						ctl.Facts[index].DefaultName = (name == "") ? "" : $"{name}_{EventDescs[index].Ending}";
+						ctl.Facts[index].TreeElement = xevent;
+					}
+				}
+			}
+		}
+
+		public override void UpdateDiscrepancyCount() =>
+				DiscrepancyCount = IiLines.Sum(line => line.DiscrepancyCount);
+
+		public override void UpdateChangesPending() =>
+			ChangesPending = IiLines.Sum(line => line.ChangesPending);
+	}
+
 }

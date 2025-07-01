@@ -280,7 +280,7 @@ namespace AgsEventAdder
 			NewInRoster = "";
 		}
 
-		public void CancelPendingChanges()
+		public void DiscardPendingChanges()
 		{
 			ChangeToCurrent();
 			DontAddToCode();
@@ -296,14 +296,19 @@ namespace AgsEventAdder
 			if (!MustAddStubToCode)
 				return; // Nothing to do
 
-			MustAddStubToCode = false;
 			string new_name = NewInRoster?.Trim();
 			if (string.IsNullOrEmpty(new_name))
 				return; // Nothing in roster
 
-			functions.Add(new_name);
+			bool stub_is_actually_missing = functions.Add(new_name);
 
-			string ret_type = string.IsNullOrWhiteSpace(desc.ReturnType) ? 
+			// Note: May only do this _after_ functions have been extended
+			MustAddStubToCode = false;
+			if (!stub_is_actually_missing)
+				return; 
+
+			// Add the stub
+			string ret_type = string.IsNullOrWhiteSpace(desc.ReturnType) ?
 				"void" : desc.ReturnType.Trim();
 			string signature = string.IsNullOrWhiteSpace(desc.Signature) ?
 				"()" : desc.Signature;
