@@ -45,6 +45,7 @@ namespace AgsEventAdder
 
 		private void InitFolder(in string prefix, in string lead_in, in XElement folder)
 		{
+			/*
 			GuiControl gc = new()
 			{
 				Nesting = prefix + lead_in,
@@ -63,11 +64,11 @@ namespace AgsEventAdder
 			int last_idx = subfolder_count + gui_count - 1;
 
 			int idx = 0;
-			string new_prefix = (lead_in == "") ? "" : NestingStrings.TopDown;
+			string new_prefix = (lead_in == "") ? "" : TreeVisual.TopBottom;
 			foreach (var sf_el in subfolder_elements)
 			{
 				string new_lead_in = (idx == last_idx) ?
-					NestingStrings.TopRight : NestingStrings.TopRightDown;
+					TreeVisual.TopRight : TreeVisual.TopRightBottom;
 				InitFolder(
 					prefix: new_prefix,
 					lead_in: new_lead_in,
@@ -78,7 +79,7 @@ namespace AgsEventAdder
 			foreach(var gui_el in gui_elements)
 			{
 				string new_lead_in = (idx == last_idx) ?
-					NestingStrings.TopRight : NestingStrings.TopRightDown;
+					TreeVisual.TopRight : TreeVisual.TopRightBottom;
 
 				InitGui(
 					prefix: new_prefix,
@@ -86,6 +87,7 @@ namespace AgsEventAdder
 					gui_el: gui_el);
 				idx++;
 			}
+			*/
 		}
 		
 		private void InitGui(in string prefix, in string lead_in, in XElement gui_el)
@@ -126,13 +128,15 @@ namespace AgsEventAdder
 			int idx = 0, last_idx = gc_elements.Count() - 1;
 			foreach (var gc_el in gc_elements)
 			{
+				/*
 				string new_lead_in = (idx == last_idx) ?
-					NestingStrings.TopRight : NestingStrings.TopRightDown;
+					TreeVisual.TopRight : TreeVisual.TopRightBottom;
 				InitGuiControl(
 					prefix: prefix,
 					lead_in: new_lead_in,
 					gc_el: gc_el);
 				idx++;
+				*/
 			}
 		}
 

@@ -1,13 +1,10 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Controls;
 using System.Windows.Shapes;
 using System.Xml.Linq;
@@ -82,10 +79,12 @@ namespace AgsEventAdder
 				list = Lines;
 			foreach (var item in list)
 			{
-				if (item is null or not TableLine)
+				if (item is null || item is not TableLine tline)
+					continue;
+				if (tline.IsFolder)
 					continue;
 
-				var facts = (item as TableLine).Facts[fact_col];
+				var facts = tline.Facts[fact_col];
 				if (facts is null || !string.IsNullOrWhiteSpace(facts.NewInRoster))
 					continue;
 
@@ -101,10 +100,12 @@ namespace AgsEventAdder
 				list = Lines;
 			foreach (var item in list)
 			{
-				if (item is null or not TableLine)
+				if (item is null || item is not TableLine tline)
+					continue;
+				if (tline.IsFolder)
 					continue;
 
-				var facts = (item as TableLine).Facts[fact_col];
+				var facts = tline.Facts[fact_col];
 				if (string.IsNullOrWhiteSpace(facts?.NewInRoster))
 					continue;
 
@@ -119,10 +120,12 @@ namespace AgsEventAdder
 				list = Lines;
 			foreach (var item in list)
 			{
-				if (item is null or not TableLine)
+				if (item is null || item is not TableLine tline)
+					continue;
+				if (tline.IsFolder)
 					continue;
 
-				var facts = (item as TableLine).Facts[fact_col];
+				var facts = tline.Facts[fact_col];
 				if (string.IsNullOrWhiteSpace(facts?.NewInRoster))
 					continue;
 
@@ -140,6 +143,8 @@ namespace AgsEventAdder
 			{
 				if (line is null || line is not TableLine tline)
 					continue;
+				if (tline.IsFolder)
+					continue;
 
 				var facts = tline.Facts[fact_col];
 				facts?.CancelPendingChanges();
@@ -154,6 +159,8 @@ namespace AgsEventAdder
 			foreach (var line in Lines)
 			{
 				if (line is null || line is not TableLine tline)
+					continue;
+				if (tline.IsFolder)
 					continue;
 
 				foreach (var facts in tline.Facts)
@@ -172,6 +179,8 @@ namespace AgsEventAdder
 			{
 				if (line is null || line is not TableLine tline)
 					continue;
+				if (tline.IsFolder)
+					continue;
 
 				for (int idx = 0; idx < tline.Facts.Count; idx++)
 				{
@@ -180,6 +189,120 @@ namespace AgsEventAdder
 					facts?.UpdateCodeWhenPending(code_writer, desc, Functions);
 				}
 			}
+		}
+	}
+
+	/// <summary>
+	/// A sequence of facts of events.
+	/// The specific table line will add key fields that specify to which
+	/// entity these events pertain, e.g., the character for character events.
+	/// </summary>
+	/// <param name="parent">The object that contains the table</param>
+	public abstract class TableLine(TableOverviewItem parent) : INotifyPropertyChanged
+	{
+		public List<EventFacts> Facts
+		{
+			get => _facts;
+			set
+			{
+				if (_facts == value)
+					return;
+
+				_facts = value;
+				OnPropertyChanged(nameof(Facts));
+			}
+		}
+		private List<EventFacts> _facts;
+
+		public bool IsFolder
+		{
+			get => _isFolder;
+			set
+			{
+				if (_isFolder == value)
+					return;
+
+				_isFolder = value;
+				OnPropertyChanged(nameof(IsFolder));
+			}
+		}
+		private bool _isFolder;
+
+		public int Indent
+		{
+			get => _indent;
+			set
+			{
+				if (_indent == value)
+					return;
+
+				_indent = value;
+				OnPropertyChanged(nameof(Indent));
+			}
+		}
+		private int _indent;
+
+		/// <summary>
+		/// The object that contains the table for this line
+		/// </summary>
+		public TableOverviewItem Parent => _parent;
+		private readonly TableOverviewItem _parent = parent;
+
+		/// <summary>
+		/// The number of table fields that contain changes 
+		/// that haven't been written to file yet
+		/// </summary>
+		public int ChangesPending
+		{
+			get => _changes_pending;
+			set
+			{
+				if (_changes_pending == value)
+					return;
+
+				_changes_pending = value;
+				_parent?.UpdateChangesPending();
+				OnPropertyChanged(nameof(ChangesPending));
+			}
+		}
+		private int _changes_pending;
+
+		/// <summary>
+		/// The number of table fields that contain discrepancies
+		/// </summary>
+		public int DiscrepancyCount
+		{
+			get => _discrepancy_count;
+			set
+			{
+				if (value == _discrepancy_count)
+					return;
+
+				_discrepancy_count = value;
+				_parent?.UpdateDiscrepancyCount();
+				OnPropertyChanged(nameof(DiscrepancyCount));
+			}
+		}
+		int _discrepancy_count;
+
+		/// <summary>
+		/// Must be called whenever an element of Facts has changes to their field 'HasPendingChanges'
+		/// </summary>
+		public void UpdateChangesPending() => ChangesPending = Facts.Sum(fact => Convert.ToInt32(fact.HasPendingChanges));
+
+		/// <summary>
+		/// Must be called whenever an element of Facts has changes to their field, 'HasDiscrepancy'
+		/// </summary>
+		public void UpdateDiscrepancyCount() => DiscrepancyCount = Facts.Sum(fact => Convert.ToInt32(fact.HasDiscrepancy));
+
+		/// <summary>
+		/// Notify whenever a property has changed
+		/// </summary>
+		public event PropertyChangedEventHandler PropertyChanged;
+
+		protected void OnPropertyChanged(string propertyName)
+		{
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 		}
 	}
 
@@ -203,19 +326,29 @@ namespace AgsEventAdder
 				.ElementOrThrow("Characters")
 				.ElementOrThrow("CharacterFolder")
 				.CheckAttributeOrThrow("Name", "Main");
-			ProcessCharacterFolder(xfolder);
+			ProcessCharacterFolder(xfolder, 0);
 			return this;
 
-			void ProcessCharacterFolder(XElement xfolder)
+			void ProcessCharacterFolder(XElement xfolder, int indent)
 			{
 				var xsubfolders = xfolder.ElementOrThrow("SubFolders");
+				int subfolder_indent = indent + 1;
 				foreach (XElement xsubfolder in xsubfolders.Elements())
 				{
 					if (xsubfolder.Name != "CharacterFolder")
 						throw new AgsXmlParsingException(
 							$"'Found unexpected sub-element <{xsubfolder.Name}>' within <Subfolders>",
 							xsubfolder);
-					ProcessCharacterFolder(xsubfolder);
+					CharacterTableLine ctl = new(this)
+					{
+						Facts = [],
+						Id = -77,
+						Indent = indent,
+						IsFolder = true,
+						Name = xsubfolder.Attribute("Name").Value,
+					};
+					Lines.Add(ctl);
+					ProcessCharacterFolder(xsubfolder, subfolder_indent);
 				}
 
 				var xcharacters = xfolder.ElementOrThrow("Characters");
@@ -231,7 +364,13 @@ namespace AgsEventAdder
 					if (string.IsNullOrWhiteSpace(name))
 						name = "";
 
-					CharacterTableLine ctl = new(this) { Name = name, Id = id, Facts = [] };
+					CharacterTableLine ctl = new(this) 
+					{ 
+						Name = name,
+						Id = id, 
+						Facts = [],
+						Indent = indent,
+					};
 					Lines.Add(ctl);
 					var xinteractions = xcharacter.ElementOrThrow("Interactions");
 					foreach (XElement xevent in xinteractions.Elements())

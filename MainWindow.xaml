@@ -22,10 +22,8 @@
         <sys:String x:Key="ConfirmDiscardChanges_Question">All pending changes and/or saves will be discarded. Are you sure?</sys:String>
         <local:CollapsedWhenNullConverter x:Key="CollapsedWhenNull" />
         <local:CollapsedWhenEmptyConverter x:Key="CollapsedWhenEmpty" />
-        <local:CollapsedWhenFalseConverter x:Key="CollapsedWhenFalse" />
-        <local:CollapsedWhenTrueConverter x:Key="CollapsedWhenTrue" />
-        <local:HiddenWhenTrueConverter x:Key="HiddenWhenTrue" />
-        <local:CollapsedWhen0Converter x:Key="CollapsedWhen0" />
+        <local:CollapsedWhenConverter x:Key="CollapsedWhen" />
+        <local:StretchConverter x:Key="Stretch" />
         <local:HiddenWhenInCodeMConverter x:Key="HiddenWhenInCode" />
         <local:CollapsedWhenBothZeroMConverter x:Key="CollapsedWhenBothZero"/>
 
@@ -232,7 +230,7 @@
             </TextBox>
             <Button x:Name="GamePathTxtReturnBtn" 
                     Content="⏎" 
-                    Visibility="{Binding ElementName=GamePathTxt, Path=IsFocused, Converter={StaticResource CollapsedWhenFalse}}"
+                    Visibility="{Binding ElementName=GamePathTxt, Path=IsFocused, Converter={StaticResource CollapsedWhen}, ConverterParameter=False}"
                     Height="{StaticResource LineHeight}"
                     Click="GamePathTxtReturnBtn_Click"/>
             <Button x:Name="GamePathBrowseBtn"
@@ -394,7 +392,7 @@
                                         <Run Text=" "/>
                                         <Run Text="{Binding Name, Mode=OneWay}" />
                                     </TextBlock>
-                                    <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen0}}">
+                                    <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen}, ConverterParameter=0}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="FontWeight" Value="Bold"/>
@@ -405,7 +403,7 @@
                                          <Run Text="{StaticResource DiscrepanciesSym}"/>
                                          <Run Text="{Binding DiscrepancyCount, Mode=OneWay}"/>
                                     </TextBlock>
-                                    <TextBlock Visibility="{Binding ChangesPending, Mode=OneWay, Converter={StaticResource CollapsedWhen0}}">
+                                    <TextBlock Visibility="{Binding ChangesPending, Mode=OneWay, Converter={StaticResource CollapsedWhen}, ConverterParameter=0}">
                                         <Run Text=" – "/>
                                         <Run Text="{StaticResource HasChangesPendingSym}" />
                                         <Run Text="{Binding ChangesPending, Mode=OneWay}" />
@@ -419,7 +417,7 @@
                                 HorizontalAlignment="Left"
                                 Orientation="Horizontal">
                                 <TextBlock Text="{Binding Name, Mode=OneWay}" />
-                                <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen0}}">
+                                <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen}, ConverterParameter=0}">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="FontWeight" Value="Bold"/>
@@ -443,7 +441,7 @@
                                     <Run Text=" "/>
                                     <Run Text="{Binding Name, Mode=OneWay}" />
                                 </TextBlock>
-                                <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen0}}">
+                                <TextBlock Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen}, ConverterParameter=0}">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="FontWeight" Value="Bold"/>
@@ -518,10 +516,15 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="{Binding Name}"/>
                                         <StackPanel Orientation="Horizontal">
+                                            <TextBlock Width="{Binding Indent, Converter={StaticResource Stretch}, ConverterParameter={StaticResource HorizontalSpacer}}"/>
+                                            <TextBlock Text="📁" Visibility="{Binding IsFolder, Converter={StaticResource CollapsedWhen}, ConverterParameter=False}"/>
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Width="{Binding Indent, Converter={StaticResource Stretch}, ConverterParameter={StaticResource HorizontalSpacer}}"/>
                                             <TextBlock x:Name="RowDiscrepancyCount" 
-                                                Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen0}}">
+                                                Visibility="{Binding DiscrepancyCount, Converter={StaticResource CollapsedWhen}, ConverterParameter=0}">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="FontWeight" Value="Bold"/>
@@ -533,7 +536,7 @@
                                                 <Run Text=" "/>
                                             </TextBlock>
                                             <TextBlock x:Name="RowChangesPending"
-                                                       Visibility="{Binding ChangesPending, Converter={StaticResource CollapsedWhen0}}">
+                                                       Visibility="{Binding ChangesPending, Converter={StaticResource CollapsedWhen}, ConverterParameter=0}">
                                                 <Run Text="{StaticResource HasChangesPendingSym}"/>
                                                 <Run Text="{Binding ChangesPending}"/>
                                             </TextBlock>
@@ -542,7 +545,25 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="ID" IsReadOnly="True" Binding="{Binding Id}"/>
+                        <DataGridTemplateColumn Header="ID" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding Id}"
+                                             IsReadOnly="True"
+                                             Visibility="{Binding IsFolder, Converter={StaticResource CollapsedWhen}, ConverterParameter=True}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFolder}" Value="True">
+                                            <Setter Property="Background" Value="LightGray"/>
+                                            <Setter Property="BorderBrush" Value="LightGray"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTemplateColumn.CellStyle>
+                        </DataGridTemplateColumn>
                         <!-- Data colums will be added in Code Behind -->
                     </DataGrid.Columns>
                 </DataGrid>

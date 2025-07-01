@@ -260,12 +260,22 @@ namespace AgsEventAdder
 			var facts_column_cm = dgrid.FindResource("FactsColumnCtxMenu") as ContextMenu;
 			var facts_cell_cm = dgrid.FindResource("FactsCellCtxMenu") as ContextMenu;
 
+			Style grey_when_folder_style = DefineGreyWhenFolderStyle();
+
 			for (var desc_idx = 0; desc_idx < descs.Count; desc_idx++)
 			{
 				var outermost_stckp = new FrameworkElementFactory(typeof(StackPanel));
 				outermost_stckp.SetValue(
 					StackPanel.OrientationProperty,
 					Orientation.Vertical);
+				outermost_stckp.SetBinding(
+					VisibilityProperty,
+					new Binding("IsFolder")
+					{
+						Mode = BindingMode.OneWay,
+						Converter = new CollapsedWhenConverter(),
+						ConverterParameter = true,
+					});
 				var new_compo = MakeComponentForNew(desc_idx, facts_cell_cm);
 				outermost_stckp.AppendChild(new_compo);
 				var current_compo = MakeComponentForCurrent(desc_idx);
@@ -295,7 +305,22 @@ namespace AgsEventAdder
 					{
 						Header = header_stckp,
 						CellTemplate = dgrid_template,
+						CellStyle = grey_when_folder_style
 					});
+			}
+
+			Style DefineGreyWhenFolderStyle()
+			{
+				var grey_when_folder_style = new Style(typeof(DataGridCell));
+				var trigger = new DataTrigger
+				{
+					Binding = new Binding("IsFolder"),
+					Value = true,
+				};
+				trigger.Setters.Add(new Setter(DataGridCell.BackgroundProperty, Brushes.LightGray));
+				trigger.Setters.Add(new Setter(DataGridCell.BorderBrushProperty, Brushes.LightGray));
+				grey_when_folder_style.Triggers.Add(trigger);
+				return grey_when_folder_style;
 			}
 
 			FrameworkElementFactory MakeComponentForNew(int desc_idx, ContextMenu main_cm)
@@ -353,7 +378,8 @@ namespace AgsEventAdder
 					new Binding($"Facts[{desc_idx}].MustAddStubToCode")
 					{
 						Mode = BindingMode.OneWay,
-						Converter = new CollapsedWhenTrueConverter(),
+						Converter = new CollapsedWhenConverter(),
+						ConverterParameter = true,
 					});
 				not_in_code_lbl.SetResourceReference(
 					Label.ContentProperty,
@@ -369,7 +395,8 @@ namespace AgsEventAdder
 					new Binding($"Facts[{desc_idx}].MustAddStubToCode")
 					{
 						Mode = BindingMode.OneWay,
-						Converter = new CollapsedWhenFalseConverter(),
+						Converter = new CollapsedWhenConverter(),
+						ConverterParameter = false,
 					});
 				add_to_code_lbl.SetResourceReference(
 					Label.ContentProperty,

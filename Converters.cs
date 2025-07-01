@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using static System.Convert;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using System.Windows.Data;
 using System.Windows;
+using System.Windows.Data;
 
 namespace AgsEventAdder
 {
@@ -21,59 +22,43 @@ namespace AgsEventAdder
 	}
 
 	/// <summary>
-	/// 'false' converts to Collapsed, all others to Visible
+	/// parameter converts to Collapsed, all others to Visible
 	/// </summary>
-	public class CollapsedWhenFalseConverter : OneWayConverter, IValueConverter
+	public class CollapsedWhenConverter : OneWayConverter, IValueConverter
 	{
 		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
 		{
 			try
 			{
-				bool v = (bool)value;
-				return v ? Visibility.Visible : Visibility.Collapsed;
+				int int_value = value.ToInt32();
+				int int_parameter = parameter.ToInt32();
+				if (int_value == int_parameter)
+					return Visibility.Collapsed;
 			}
 			catch
-			{
-				return Visibility.Visible;
-			}
+			{ }
+			return Visibility.Visible;
 		}
 	}
 
-	/// <summary>
-	/// 'True' converts to Collapsed, all others to Visible
-	/// </summary>
-	public class CollapsedWhenTrueConverter : OneWayConverter, IValueConverter
-	{
-		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-		{
-			try
-			{
-				bool v = (bool)value;
-				return v ? Visibility.Collapsed : Visibility.Visible;
-			}
-			catch
-			{
-				return Visibility.Visible;
-			}
-		}
-	}
 
 	/// <summary>
 	/// 'True' converts to Hidden, all others to Visible
 	/// </summary>
-	public class HiddenWhenTrueConverter : OneWayConverter, IValueConverter
+	public class HiddenWhenConverter : OneWayConverter, IValueConverter
 	{
 		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
 		{
 			try
 			{
-				bool v = (bool)value;
-				return v ? Visibility.Hidden : Visibility.Visible;
+				int int_value = value.ToInt32();
+				int int_parameter = parameter.ToInt32();
+				if (int_value == int_parameter)
+					return Visibility.Hidden;
 			}
 			catch
-			{
-				return Visibility.Visible;
-			}
+			{ }
+			return Visibility.Visible;
 		}
 	}
 
@@ -89,25 +74,24 @@ namespace AgsEventAdder
 	}
 
 	/// <summary>
-	/// Zero converted to Collapsed, all others to Visible
+	/// Stretches the input by the parameter
 	/// </summary>
-	public class CollapsedWhen0Converter : OneWayConverter, IValueConverter
+	public class StretchConverter : OneWayConverter, IValueConverter
 	{
 		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
 		{
 			try
 			{
-				int v = (int)value;
-				return v == 0 ? Visibility.Collapsed : Visibility.Visible;
+				return ToDouble(value) * ToDouble(parameter);
 			}
 			catch
 			{
-				return Visibility.Visible;
+				return value;
 			}
 		}
 	}
 
-	public class HiddenWhenInCodeMConverter : OneWayMultiConverter, IMultiValueConverter
+	public class HiddenWhenInCodeMConverter : OneWayConverter, IMultiValueConverter
 	{
 		public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
 		{
@@ -127,15 +111,15 @@ namespace AgsEventAdder
 
 	}
 
-	public class CollapsedWhenEqualMConverter : OneWayMultiConverter, IMultiValueConverter
+	public class CollapsedWhenEqualMConverter : OneWayConverter, IMultiValueConverter
 	{
 		public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
 		{
 			if (values.Length >= 2)
 				try
 				{
-					string string1 = values[0] as string;
-					string string2 = values[1] as string;
+					string string1 = values[0].ToString();
+					string string2 = values[1].ToString();
 
 					if (string1?.Trim().ParenParenToEmpty() == string2?.Trim().ParenParenToEmpty())
 						return Visibility.Collapsed;
@@ -146,15 +130,15 @@ namespace AgsEventAdder
 		}
 	}
 
-	public class CollapsedWhenBothZeroMConverter: OneWayMultiConverter, IMultiValueConverter
+	public class CollapsedWhenBothZeroMConverter: OneWayConverter, IMultiValueConverter
 	{
 		public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
 		{
 			if (values.Length >= 2)
 				try
 				{
-					int val1 = to_int(values[0]);
-					int val2 = to_int(values[1]);
+					int val1 = values[0].ToInt32();
+					int val2 = values[1].ToInt32();
 
 					if (val1 == 0 && val2 == 0)
 						return Visibility.Collapsed;
@@ -162,42 +146,18 @@ namespace AgsEventAdder
 				catch { }
 
 			return Visibility.Visible;
-
-			int to_int(object val)
-			{
-				if (val is null)
-					return 0;
-				if (val is bool)
-					return (bool) val ? 1 : 0;
-				try
-				{
-					return (int)val;
-				}
-				catch 
-				{
-					return 1;
-				}
-			}
 		}
 	}
 
 	/// <summary>
-	/// Converter where the way back isn't implemented
+	/// Converter or MultiConverter where the way back isn't implemented
 	/// </summary>
 	public abstract class OneWayConverter
 	{
 		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
 			=> throw new NotImplementedException();
-	}
 
-	/// <summary>
-	/// MultiConverter where the way back isn't implemented
-	/// </summary>
-	public abstract class OneWayMultiConverter
-	{
 		public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
 			=> throw new NotImplementedException();
 	}
-
-
 }
